@@ -27,4 +27,4 @@
 | v0.2.7 | Merged to main | [v0.2.7-market-discovery-normalization-shell.md](releases/v0.2.7-market-discovery-normalization-shell.md) |
 | v0.2.8 | Merged to main | [v0.2.8-market-discovery-pipeline-shell.md](releases/v0.2.8-market-discovery-pipeline-shell.md) |
 | v0.2.9 | Merged to main | [v0.2.9-market-discovery-pipeline-hardening.md](releases/v0.2.9-market-discovery-pipeline-hardening.md) |
-| v0.3.0 | In progress | [v0.3.0-discovery-application-service-shell.md](releases/v0.3.0-discovery-application-service-shell.md) |
+| v0.3.0 | Merged to main | [v0.3.0-discovery-application-service-shell.md](releases/v0.3.0-discovery-application-service-shell.md) |
