@@ -64,6 +64,23 @@ def test_time_rule_disabled():
     assert result.state == RuleState.DISABLED
 
 
+def test_time_rule_locked_by_admin():
+    result = evaluate_time_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
+def test_time_rule_fail_has_distance_to_trigger():
+    result = evaluate_time_rule(_ctx(current_time=_T_BEFORE))
+    assert result.distance_to_trigger is not None
+    assert result.distance_to_trigger > 0
+
+
+def test_time_rule_pass_has_current_value():
+    result = evaluate_time_rule(_ctx())
+    assert result.current_value is not None
+    assert result.threshold_value is not None
+
+
 # ── price_rule ────────────────────────────────────────────────────────────────
 
 def test_price_rule_pass_within_range():
@@ -84,6 +101,18 @@ def test_price_rule_fail_above_max():
 def test_price_rule_disabled():
     result = evaluate_price_rule(_ctx(current_price=0.05), enabled=False)
     assert result.state == RuleState.DISABLED
+
+
+def test_price_rule_locked_by_admin():
+    result = evaluate_price_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
+def test_price_rule_fail_has_current_and_threshold():
+    result = evaluate_price_rule(_ctx(current_price=0.05))
+    assert result.current_value == 0.05
+    assert result.threshold_value is not None
+    assert result.distance_to_trigger is not None and result.distance_to_trigger > 0
 
 
 # ── move_rule ─────────────────────────────────────────────────────────────────
@@ -112,10 +141,27 @@ def test_move_rule_disabled():
     assert result.state == RuleState.DISABLED
 
 
+def test_move_rule_locked_by_admin():
+    result = evaluate_move_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
 def test_move_rule_exact_threshold_passes():
     # abs(0.53 - 0.50) = 0.03 == 0.03 — boundary is inclusive
     result = evaluate_move_rule(_ctx(current_price=0.53))
     assert result.state == RuleState.PASS
+
+
+def test_move_rule_fail_has_current_value_and_distance():
+    result = evaluate_move_rule(_ctx(current_price=0.51))
+    assert result.current_value is not None
+    assert result.threshold_value == 0.03
+    assert result.distance_to_trigger is not None and result.distance_to_trigger > 0
+
+
+def test_move_rule_pass_has_distance_to_trigger_zero():
+    result = evaluate_move_rule(_ctx())
+    assert result.distance_to_trigger == 0.0
 
 
 # ── spread_rule ───────────────────────────────────────────────────────────────
@@ -135,6 +181,16 @@ def test_spread_rule_disabled():
     assert result.state == RuleState.DISABLED
 
 
+def test_spread_rule_locked_by_admin():
+    result = evaluate_spread_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
+def test_spread_rule_fail_has_distance_to_trigger():
+    result = evaluate_spread_rule(_ctx(spread=0.10))
+    assert result.distance_to_trigger is not None and result.distance_to_trigger > 0
+
+
 # ── event_limit_rule ──────────────────────────────────────────────────────────
 
 def test_event_limit_rule_pass():
@@ -152,6 +208,17 @@ def test_event_limit_rule_disabled():
     assert result.state == RuleState.DISABLED
 
 
+def test_event_limit_rule_locked_by_admin():
+    result = evaluate_event_limit_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
+def test_event_limit_rule_has_current_and_threshold():
+    result = evaluate_event_limit_rule(_ctx())
+    assert result.current_value == 2.0
+    assert result.threshold_value == 5.0
+
+
 # ── max_positions_rule ────────────────────────────────────────────────────────
 
 def test_max_positions_rule_pass():
@@ -167,3 +234,14 @@ def test_max_positions_rule_fail_at_max():
 def test_max_positions_rule_disabled():
     result = evaluate_max_positions_rule(_ctx(open_position_count=99), enabled=False)
     assert result.state == RuleState.DISABLED
+
+
+def test_max_positions_rule_locked_by_admin():
+    result = evaluate_max_positions_rule(_ctx(), locked_by_admin=True)
+    assert result.state == RuleState.LOCKED_BY_ADMIN
+
+
+def test_max_positions_rule_has_current_and_threshold():
+    result = evaluate_max_positions_rule(_ctx())
+    assert result.current_value == 1.0
+    assert result.threshold_value == 3.0
