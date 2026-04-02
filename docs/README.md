@@ -42,3 +42,4 @@
 | v0.3.12 | Merged to main | [v0.3.12-polymarket-fetch-to-discovery-shell.md](releases/v0.3.12-polymarket-fetch-to-discovery-shell.md) |
 | v0.3.13 | Merged to main | [v0.3.13-trigger-to-fetch-wiring-shell.md](releases/v0.3.13-trigger-to-fetch-wiring-shell.md) |
 | v0.3.14 | Merged to main | [v0.3.14-discovery-trigger-operational-hardening.md](releases/v0.3.14-discovery-trigger-operational-hardening.md) |
+| v0.3.15 | Merged to main | [v0.3.15-discovery-trigger-auth-shell.md](releases/v0.3.15-discovery-trigger-auth-shell.md) |
