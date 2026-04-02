@@ -69,3 +69,4 @@
 | v0.7.4 | Merged to main | [v0.7.4-live-order-response-fill-confirmation-foundation-pack.md](releases/v0.7.4-live-order-response-fill-confirmation-foundation-pack.md) |
 | v0.7.5 | Merged to main | [v0.7.5-live-order-cancel-replace-seam-pack.md](releases/v0.7.5-live-order-cancel-replace-seam-pack.md) |
 | v0.7.6 | Merged to main | [v0.7.6-live-order-event-stream-reconciliation-foundation-pack.md](releases/v0.7.6-live-order-event-stream-reconciliation-foundation-pack.md) |
+| v0.7.7 | In progress | [v0.7.7-live-execution-orchestrator-foundation-pack.md](releases/v0.7.7-live-execution-orchestrator-foundation-pack.md) |
