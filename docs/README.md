@@ -30,4 +30,4 @@
 | v0.3.0 | Merged to main | [v0.3.0-discovery-application-service-shell.md](releases/v0.3.0-discovery-application-service-shell.md) |
 | v0.3.1 | Merged to main | [v0.3.1-discovery-trigger-api-shell.md](releases/v0.3.1-discovery-trigger-api-shell.md) |
 | v0.3.2 | Merged to main | [v0.3.2-discovery-trigger-contract-hardening.md](releases/v0.3.2-discovery-trigger-contract-hardening.md) |
-| v0.3.3 | In progress | [v0.3.3-discovery-source-adapter-shell.md](releases/v0.3.3-discovery-source-adapter-shell.md) |
+| v0.3.3 | Merged to main | [v0.3.3-discovery-source-adapter-shell.md](releases/v0.3.3-discovery-source-adapter-shell.md) |
