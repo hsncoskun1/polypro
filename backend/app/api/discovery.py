@@ -1,17 +1,15 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
-from app.adapters.discovery import PayloadDiscoveryAdapter
-from app.adapters.external_payload import (
-    ExternalPayloadMappingError,
-    PolymarketMarketPayload,
-    map_to_raw_payload_item,
-)
 from app.api.schemas.discovery import (
+    DiscoverySummarySchema,
     DiscoveryTriggerRequest,
     DiscoveryTriggerResponse,
-    DiscoverySummarySchema,
 )
-from app.services.discovery import run_discovery_service
+from app.clients.polymarket import PolymarketClient, PolymarketClientError
+from app.clients.polymarket_mapping import ClientPayloadMappingError
+from app.clients.timeframe_mapping import TimeframeMappingError
+from app.core.config import POLYMARKET_URL
+from app.services.discovery_client import run_polymarket_fetch_to_discovery
 
 router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
 
@@ -19,21 +17,14 @@ router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
 @router.post("/trigger", response_model=DiscoveryTriggerResponse)
 def trigger_discovery(body: DiscoveryTriggerRequest, request: Request) -> DiscoveryTriggerResponse:
     registry = request.app.state.market_registry
-    raw_payload = []
-    for item in body.items:
-        pm = PolymarketMarketPayload(
-            condition_id=item.market_id,
-            question=item.title,
-            end_date=item.timeframe,
-        )
-        try:
-            raw_payload.append(map_to_raw_payload_item(pm))
-        except ExternalPayloadMappingError:
-            # Items already validated at API boundary (min_length=1).
-            # This path is defensive — mapping errors are not silently lost.
-            pass
-    adapter = PayloadDiscoveryAdapter(raw_payload)
-    result = run_discovery_service(adapter, registry, source_name=body.source_name)
+    url = body.url or POLYMARKET_URL
+    client = PolymarketClient(url, timeout=body.timeout)
+    try:
+        result = run_polymarket_fetch_to_discovery(client, registry, source_name=body.source_name)
+    except PolymarketClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except (ClientPayloadMappingError, TimeframeMappingError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     return DiscoveryTriggerResponse(
         summary=DiscoverySummarySchema(
             added_count=result.summary.added_count,

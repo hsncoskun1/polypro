@@ -3,15 +3,10 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-class RawMarketItemSchema(BaseModel):
-    market_id: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    timeframe: str = Field(min_length=1)
-
-
 class DiscoveryTriggerRequest(BaseModel):
-    source_name: str = Field(default="unknown", min_length=1)
-    items: list[RawMarketItemSchema]
+    source_name: str = Field(default="polymarket", min_length=1)
+    url: str | None = Field(default=None)
+    timeout: float = Field(default=10.0, gt=0)
 
 
 class DiscoverySummarySchema(BaseModel):
