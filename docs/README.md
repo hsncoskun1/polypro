@@ -37,4 +37,4 @@
 | v0.3.7 | Merged to main | [v0.3.7-external-source-client-shell.md](releases/v0.3.7-external-source-client-shell.md) |
 | v0.3.8 | Merged to main | [v0.3.8-polymarket-client-payload-mapping-shell.md](releases/v0.3.8-polymarket-client-payload-mapping-shell.md) |
 | v0.3.9 | Merged to main | [v0.3.9-client-discovery-adapter-integration-shell.md](releases/v0.3.9-client-discovery-adapter-integration-shell.md) |
-| v0.3.10 | In progress | [v0.3.10-timeframe-mapping-shell.md](releases/v0.3.10-timeframe-mapping-shell.md) |
+| v0.3.10 | Merged to main | [v0.3.10-timeframe-mapping-shell.md](releases/v0.3.10-timeframe-mapping-shell.md) |
