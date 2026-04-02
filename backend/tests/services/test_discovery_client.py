@@ -44,7 +44,6 @@ class TestRunPolymarketClientDiscovery:
         rows = [_valid_row("cid1"), {"question": "Q?", "end_date": FAR_FUTURE}]  # condition_id key missing
         with patch("app.services.discovery_client.PolymarketClient") as MockClient:
             MockClient.return_value.fetch.return_value = rows
-            # missing condition_id key → ClientPayloadMappingError propagates
             with pytest.raises(ClientPayloadMappingError):
                 run_polymarket_client_discovery(URL, _registry())
 
