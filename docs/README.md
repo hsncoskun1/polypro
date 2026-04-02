@@ -46,3 +46,4 @@
 | v0.3.16 | Merged to main | [v0.3.16-discovery-run-guard-shell.md](releases/v0.3.16-discovery-run-guard-shell.md) |
 | v0.3.17 | Merged to main | [v0.3.17-discovery-run-status-shell.md](releases/v0.3.17-discovery-run-status-shell.md) |
 | v0.3.18 | Merged to main | [v0.3.18-discovery-status-auth-shell.md](releases/v0.3.18-discovery-status-auth-shell.md) |
+| v0.3.19 | Merged to main | [v0.3.19-discovery-scheduler-shell.md](releases/v0.3.19-discovery-scheduler-shell.md) |
