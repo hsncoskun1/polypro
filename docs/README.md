@@ -71,4 +71,4 @@
 | v0.7.6 | Merged to main | [v0.7.6-live-order-event-stream-reconciliation-foundation-pack.md](releases/v0.7.6-live-order-event-stream-reconciliation-foundation-pack.md) |
 | v0.7.7 | Merged to main | [v0.7.7-live-execution-orchestrator-foundation-pack.md](releases/v0.7.7-live-execution-orchestrator-foundation-pack.md) |
 | v0.7.8 | Merged to main | [v0.7.8-live-exchange-client-adapter-foundation-pack.md](releases/v0.7.8-live-exchange-client-adapter-foundation-pack.md) |
-| v0.7.9 | In progress | [v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md](releases/v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md) |
+| v0.7.9 | Merged to main | [v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md](releases/v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md) |
