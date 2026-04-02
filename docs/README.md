@@ -74,4 +74,4 @@
 | v0.7.9 | Merged to main | [v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md](releases/v0.7.9-production-client-wiring-safe-dry-run-foundation-pack.md) |
 | v0.8.0 | Merged to main | [v0.8.0-production-client-concrete-integration-pack.md](releases/v0.8.0-production-client-concrete-integration-pack.md) |
 | v0.8.1 | Merged to main | [v0.8.1-production-client-operational-hardening-pack.md](releases/v0.8.1-production-client-operational-hardening-pack.md) |
-| v0.8.2 | In progress | [v0.8.2-production-client-end-to-end-backend-readiness-pack.md](releases/v0.8.2-production-client-end-to-end-backend-readiness-pack.md) |
+| v0.8.2 | Merged to main | [v0.8.2-production-client-end-to-end-backend-readiness-pack.md](releases/v0.8.2-production-client-end-to-end-backend-readiness-pack.md) |
