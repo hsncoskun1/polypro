@@ -69,7 +69,10 @@ def trigger_discovery(
 
 
 @router.get("/status", response_model=DiscoveryRunStatusResponse)
-def get_discovery_status(request: Request) -> DiscoveryRunStatusResponse:
+def get_discovery_status(
+    request: Request,
+    _: None = Depends(verify_trigger_auth),
+) -> DiscoveryRunStatusResponse:
     status = request.app.state.discovery_run_status
     return DiscoveryRunStatusResponse(
         is_running=status.is_running,
