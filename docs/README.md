@@ -17,4 +17,4 @@
 | v0.1.3 | Merged to main | [v0.1.3-launcher-shell.md](releases/v0.1.3-launcher-shell.md) |
 | v0.1.4 | Merged to main | [v0.1.4-foundation-verification.md](releases/v0.1.4-foundation-verification.md) |
 | v0.1.5 | Merged to main | [v0.1.5-local-workflow-hardening.md](releases/v0.1.5-local-workflow-hardening.md) |
-| v0.2.0 | Branch only, not merged | [v0.2.0-market-registry-domain-shell.md](releases/v0.2.0-market-registry-domain-shell.md) |
+| v0.2.0 | Merged to main | [v0.2.0-market-registry-domain-shell.md](releases/v0.2.0-market-registry-domain-shell.md) |
