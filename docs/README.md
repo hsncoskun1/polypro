@@ -40,3 +40,4 @@
 | v0.3.10 | Merged to main | [v0.3.10-timeframe-mapping-shell.md](releases/v0.3.10-timeframe-mapping-shell.md) |
 | v0.3.11 | Merged to main | [v0.3.11-timeframe-mapping-integration-shell.md](releases/v0.3.11-timeframe-mapping-integration-shell.md) |
 | v0.3.12 | Merged to main | [v0.3.12-polymarket-fetch-to-discovery-shell.md](releases/v0.3.12-polymarket-fetch-to-discovery-shell.md) |
+| v0.3.13 | Merged to main | [v0.3.13-trigger-to-fetch-wiring-shell.md](releases/v0.3.13-trigger-to-fetch-wiring-shell.md) |
