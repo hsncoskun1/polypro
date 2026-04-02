@@ -1,7 +1,10 @@
 import sqlite3
 import pathlib
+import logging
 
 from app.domain.markets.model import Market, MarketStatus, Timeframe
+
+logger = logging.getLogger(__name__)
 
 
 class SqliteMarketStore:
@@ -30,17 +33,23 @@ class SqliteMarketStore:
             rows = conn.execute(
                 "SELECT market_id, title, timeframe, status FROM markets"
             ).fetchall()
-        return [
-            Market(
-                market_id=row[0],
-                title=row[1],
-                timeframe=Timeframe(row[2]),
-                status=MarketStatus(row[3]),
-            )
-            for row in rows
-        ]
+        markets = []
+        for row in rows:
+            try:
+                markets.append(
+                    Market(
+                        market_id=row[0],
+                        title=row[1],
+                        timeframe=Timeframe(row[2]),
+                        status=MarketStatus(row[3]),
+                    )
+                )
+            except ValueError as exc:
+                logger.warning("Skipping corrupt market row %r: %s", row[0], exc)
+        return markets
 
     def save(self, markets: list[Market]) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self._path) as conn:
             conn.execute("DELETE FROM markets")
             conn.executemany(

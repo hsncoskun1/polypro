@@ -21,3 +21,4 @@
 | v0.2.1 | Merged to main | [v0.2.1-market-registry-api.md](releases/v0.2.1-market-registry-api.md) |
 | v0.2.2 | Merged to main | [v0.2.2-market-registry-contract-hardening.md](releases/v0.2.2-market-registry-contract-hardening.md) |
 | v0.2.3 | Merged to main | [v0.2.3-market-registry-persistence-shell.md](releases/v0.2.3-market-registry-persistence-shell.md) |
+| v0.2.4 | In progress | [v0.2.4-market-registry-persistence-hardening.md](releases/v0.2.4-market-registry-persistence-hardening.md) |
