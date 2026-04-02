@@ -19,3 +19,6 @@ Thumbs.db
 
 # Claude Code — local per-user settings, not committed
 .claude/settings.local.json
+
+# Local utility scripts — not product code
+create_polybot_doc.py
