@@ -274,7 +274,7 @@ STATUS_URL = "/api/v1/discovery/status"
 
 
 def test_status_initial_state(client):
-    response = client.get(STATUS_URL)
+    response = client.get(STATUS_URL, headers=_AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert data["is_running"] is False
@@ -287,7 +287,7 @@ def test_status_initial_state(client):
 def test_status_updated_after_successful_trigger(client):
     with patch(_PATCH_TARGET, return_value=_make_result(added=3)):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
-    response = client.get(STATUS_URL)
+    response = client.get(STATUS_URL, headers=_AUTH_HEADER)
     data = response.json()
     assert data["is_running"] is False
     assert data["last_finished_at"] is not None
@@ -300,7 +300,7 @@ def test_status_error_recorded_after_502(client):
     from app.clients.polymarket import PolymarketClientError
     with patch(_PATCH_TARGET, side_effect=PolymarketClientError("fetch failed")):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
-    response = client.get(STATUS_URL)
+    response = client.get(STATUS_URL, headers=_AUTH_HEADER)
     data = response.json()
     assert data["is_running"] is False
     assert data["last_finished_at"] is not None
@@ -311,23 +311,18 @@ def test_status_error_recorded_after_502(client):
 def test_status_is_running_false_after_run_completes(client):
     with patch(_PATCH_TARGET, return_value=_make_result()):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
-    response = client.get(STATUS_URL)
+    response = client.get(STATUS_URL, headers=_AUTH_HEADER)
     assert response.json()["is_running"] is False
 
 
 def test_status_result_summary_fields_present(client):
     with patch(_PATCH_TARGET, return_value=_make_result(added=1, skipped_dup=2, skipped_inv=1)):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
-    summary = client.get(STATUS_URL).json()["last_result_summary"]
+    summary = client.get(STATUS_URL, headers=_AUTH_HEADER).json()["last_result_summary"]
     assert summary["added_count"] == 1
     assert summary["skipped_duplicate_count"] == 2
     assert summary["skipped_invalid_count"] == 1
     assert summary["total_seen"] == 4
-
-
-def test_status_endpoint_requires_no_auth(client):
-    response = client.get(STATUS_URL)
-    assert response.status_code == 200
 
 
 def test_status_last_error_cleared_on_successful_run(client):
@@ -336,6 +331,28 @@ def test_status_last_error_cleared_on_successful_run(client):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
     with patch(_PATCH_TARGET, return_value=_make_result()):
         client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
-    data = client.get(STATUS_URL).json()
+    data = client.get(STATUS_URL, headers=_AUTH_HEADER).json()
     assert data["last_error"] is None
     assert data["last_success_at"] is not None
+
+
+# ── Status auth ───────────────────────────────────────────────────────────────
+
+def test_status_missing_auth_header_returns_401(client):
+    response = client.get(STATUS_URL)
+    assert response.status_code == 401
+
+
+def test_status_wrong_token_returns_401(client):
+    response = client.get(STATUS_URL, headers={"Authorization": "Bearer wrong-token"})
+    assert response.status_code == 401
+
+
+def test_status_correct_token_returns_200(client):
+    response = client.get(STATUS_URL, headers=_AUTH_HEADER)
+    assert response.status_code == 200
+
+
+def test_status_auth_not_configured_returns_500(no_auth_config_client):
+    response = no_auth_config_client.get(STATUS_URL)
+    assert response.status_code == 500
