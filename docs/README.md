@@ -26,3 +26,4 @@
 | v0.2.6 | Merged to main | [v0.2.6-market-discovery-source-contract.md](releases/v0.2.6-market-discovery-source-contract.md) |
 | v0.2.7 | Merged to main | [v0.2.7-market-discovery-normalization-shell.md](releases/v0.2.7-market-discovery-normalization-shell.md) |
 | v0.2.8 | Merged to main | [v0.2.8-market-discovery-pipeline-shell.md](releases/v0.2.8-market-discovery-pipeline-shell.md) |
+| v0.2.9 | In progress | [v0.2.9-market-discovery-pipeline-hardening.md](releases/v0.2.9-market-discovery-pipeline-hardening.md) |
