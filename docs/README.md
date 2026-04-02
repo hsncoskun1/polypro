@@ -19,3 +19,4 @@
 | v0.1.5 | Merged to main | [v0.1.5-local-workflow-hardening.md](releases/v0.1.5-local-workflow-hardening.md) |
 | v0.2.0 | Merged to main | [v0.2.0-market-registry-domain-shell.md](releases/v0.2.0-market-registry-domain-shell.md) |
 | v0.2.1 | Merged to main | [v0.2.1-market-registry-api.md](releases/v0.2.1-market-registry-api.md) |
+| v0.2.2 | Branch only, not merged | [v0.2.2-market-registry-contract-hardening.md](releases/v0.2.2-market-registry-contract-hardening.md) |

@@ -92,3 +92,42 @@ def test_update_status_returns_updated_market(client):
 def test_update_status_not_found_returns_404(client):
     response = client.patch("/api/v1/markets/nonexistent/status", json={"status": "inactive"})
     assert response.status_code == 404
+
+
+# ── contract hardening ────────────────────────────────────────────────────────
+
+def test_list_markets_order_is_deterministic(client):
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-003"})
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-001"})
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-002"})
+    response = client.get("/api/v1/markets")
+    assert response.status_code == 200
+    ids = [m["market_id"] for m in response.json()]
+    assert ids == ["mkt-001", "mkt-002", "mkt-003"]
+
+
+def test_list_active_order_is_deterministic(client):
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-003"})
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-001"})
+    client.post("/api/v1/markets", json={**MARKET_PAYLOAD, "market_id": "mkt-002"})
+    client.patch("/api/v1/markets/mkt-002/status", json={"status": "inactive"})
+    response = client.get("/api/v1/markets/active")
+    assert response.status_code == 200
+    ids = [m["market_id"] for m in response.json()]
+    assert ids == ["mkt-001", "mkt-003"]
+
+
+def test_update_status_invalid_value_returns_422(client):
+    client.post("/api/v1/markets", json=MARKET_PAYLOAD)
+    response = client.patch("/api/v1/markets/mkt-001/status", json={"status": "INVALID"})
+    assert response.status_code == 422
+
+
+def test_create_market_missing_required_field_returns_422(client):
+    response = client.post("/api/v1/markets", json={"title": "No ID", "timeframe": "1W"})
+    assert response.status_code == 422
+
+
+def test_create_market_empty_body_returns_422(client):
+    response = client.post("/api/v1/markets", json={})
+    assert response.status_code == 422
