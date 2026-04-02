@@ -39,3 +39,4 @@
 | v0.3.9 | Merged to main | [v0.3.9-client-discovery-adapter-integration-shell.md](releases/v0.3.9-client-discovery-adapter-integration-shell.md) |
 | v0.3.10 | Merged to main | [v0.3.10-timeframe-mapping-shell.md](releases/v0.3.10-timeframe-mapping-shell.md) |
 | v0.3.11 | Merged to main | [v0.3.11-timeframe-mapping-integration-shell.md](releases/v0.3.11-timeframe-mapping-integration-shell.md) |
+| v0.3.12 | In progress | [v0.3.12-polymarket-fetch-to-discovery-shell.md](releases/v0.3.12-polymarket-fetch-to-discovery-shell.md) |

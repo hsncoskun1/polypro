@@ -11,30 +11,27 @@ from app.domain.markets.registry import InMemoryMarketRegistry
 from app.services.discovery import DiscoveryResult, run_discovery_service
 
 
-def run_polymarket_client_discovery(
-    url: str,
+def run_polymarket_fetch_to_discovery(
+    client: PolymarketClient,
     registry: InMemoryMarketRegistry,
     *,
     source_name: str = "polymarket",
-    timeout: float = 10.0,
 ) -> DiscoveryResult:
-    """Fetch Polymarket market data and run the discovery pipeline.
+    """Run the full Polymarket fetch-to-discovery chain using an injected client.
 
-    Chain: PolymarketClient.fetch()
+    Chain: client.fetch()
         → map_client_rows_to_payloads()
-        → map_end_date_to_timeframe()       [ISO date → Timeframe enum]
+        → map_end_date_to_timeframe()
         → map_to_raw_payload_item()
         → PayloadDiscoveryAdapter
         → run_discovery_service()
 
     TimeframeMappingError (past date or unparseable end_date) propagates openly.
+    ClientPayloadMappingError (missing key in row) propagates openly.
     ExternalPayloadMappingError (empty field) is caught defensively.
     No silent fallback.
-    Not wired to the trigger endpoint — integration shell only.
     """
-    client = PolymarketClient(url, timeout=timeout)
     rows = client.fetch()
-
     pm_payloads = map_client_rows_to_payloads(rows)
 
     raw_items: list[RawPayloadItem] = []
@@ -48,9 +45,23 @@ def run_polymarket_client_discovery(
         try:
             raw_items.append(map_to_raw_payload_item(pm_mapped))
         except ExternalPayloadMappingError:
-            # Whitespace-only fields that slipped through mapping layer.
-            # ExternalPayloadMappingError here means an empty field — defensive catch.
             pass
 
     adapter = PayloadDiscoveryAdapter(raw_items)
     return run_discovery_service(adapter, registry, source_name=source_name)
+
+
+def run_polymarket_client_discovery(
+    url: str,
+    registry: InMemoryMarketRegistry,
+    *,
+    source_name: str = "polymarket",
+    timeout: float = 10.0,
+) -> DiscoveryResult:
+    """Convenience wrapper: create PolymarketClient from URL and run fetch-to-discovery.
+
+    Delegates to run_polymarket_fetch_to_discovery().
+    Not wired to the trigger endpoint — integration shell only.
+    """
+    client = PolymarketClient(url, timeout=timeout)
+    return run_polymarket_fetch_to_discovery(client, registry, source_name=source_name)
