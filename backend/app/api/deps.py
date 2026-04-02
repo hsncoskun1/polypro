@@ -13,7 +13,10 @@ def verify_trigger_auth(authorization: str | None = Header(default=None)) -> Non
     """
     expected = os.getenv("TRIGGER_AUTH_TOKEN", "")
     if not expected:
-        return
+        raise HTTPException(
+            status_code=500,
+            detail="Auth not configured: TRIGGER_AUTH_TOKEN is not set",
+        )
 
     if authorization is None:
         raise HTTPException(status_code=401, detail="Authorization header missing")
