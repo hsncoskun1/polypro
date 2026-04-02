@@ -67,4 +67,4 @@
 | v0.7.2 | Merged to main | [v0.7.2-live-execution-preflight-outbound-guard-pack.md](releases/v0.7.2-live-execution-preflight-outbound-guard-pack.md) |
 | v0.7.3 | Merged to main | [v0.7.3-live-order-submission-seam-pack.md](releases/v0.7.3-live-order-submission-seam-pack.md) |
 | v0.7.4 | Merged to main | [v0.7.4-live-order-response-fill-confirmation-foundation-pack.md](releases/v0.7.4-live-order-response-fill-confirmation-foundation-pack.md) |
-| v0.7.5 | In progress | [v0.7.5-live-order-cancel-replace-seam-pack.md](releases/v0.7.5-live-order-cancel-replace-seam-pack.md) |
+| v0.7.5 | Merged to main | [v0.7.5-live-order-cancel-replace-seam-pack.md](releases/v0.7.5-live-order-cancel-replace-seam-pack.md) |
