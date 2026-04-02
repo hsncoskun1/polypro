@@ -61,4 +61,4 @@
 | v0.5.6 | Merged to main | [v0.5.6-claim-settlement-accounting-pack.md](releases/v0.5.6-claim-settlement-accounting-pack.md) |
 | v0.6.0 | Merged to main | [v0.6.0-risk-engine-pack.md](releases/v0.6.0-risk-engine-pack.md) |
 | v0.6.1 | Merged to main | [v0.6.1-simulation-control-plane-pack.md](releases/v0.6.1-simulation-control-plane-pack.md) |
-| v0.6.2 | In progress | [v0.6.2-admin-operational-control-reporting-pack.md](releases/v0.6.2-admin-operational-control-reporting-pack.md) |
+| v0.6.2 | Merged to main | [v0.6.2-admin-operational-control-reporting-pack.md](releases/v0.6.2-admin-operational-control-reporting-pack.md) |
