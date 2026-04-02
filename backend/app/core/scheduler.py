@@ -1,5 +1,4 @@
 import threading
-import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,6 +8,8 @@ from app.core.logger import get_logger
 from app.services.discovery_client import run_polymarket_fetch_to_discovery
 
 logger = get_logger(__name__)
+
+_MIN_INTERVAL = 1
 
 
 class DiscoveryScheduler:
@@ -20,6 +21,12 @@ class DiscoveryScheduler:
 
     Errors during a scheduled run are logged; the scheduler does not crash.
     Disabled by default — set DISCOVERY_SCHEDULER_ENABLED=true to activate.
+
+    Hardening guarantees:
+    - interval_seconds must be >= 1; raises ValueError otherwise
+    - double-start is safe: a second start() call while running is a no-op
+    - double-stop is safe: stop() when not started does nothing
+    - stop() always signals the loop and joins the thread if one exists
     """
 
     def __init__(
@@ -31,6 +38,10 @@ class DiscoveryScheduler:
         run_guard: Any,
         run_status: Any,
     ) -> None:
+        if interval_seconds < _MIN_INTERVAL:
+            raise ValueError(
+                f"interval_seconds must be >= {_MIN_INTERVAL}, got {interval_seconds}"
+            )
         self._interval = interval_seconds
         self._enabled = enabled
         self._registry = registry
@@ -43,6 +54,9 @@ class DiscoveryScheduler:
         if not self._enabled:
             logger.info("Discovery scheduler disabled — skipping start")
             return
+        if self._thread is not None and self._thread.is_alive():
+            logger.warning("Discovery scheduler already running — ignoring duplicate start")
+            return
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="discovery-scheduler")
         self._thread.start()
@@ -52,6 +66,7 @@ class DiscoveryScheduler:
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
+            self._thread = None
         logger.info("Discovery scheduler stopped")
 
     def _loop(self) -> None:
