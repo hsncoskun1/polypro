@@ -44,6 +44,7 @@ def get_market(market_id: str, request: Request) -> MarketResponse:
 @router.post("", response_model=MarketResponse, status_code=201)
 def create_market(body: MarketCreate, request: Request) -> MarketResponse:
     registry = request.app.state.market_registry
+    store = request.app.state.market_store
     try:
         timeframe = parse_timeframe(body.timeframe)
     except InvalidTimeframeError as exc:
@@ -53,6 +54,7 @@ def create_market(body: MarketCreate, request: Request) -> MarketResponse:
         registry.add(market)
     except DuplicateMarketError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    store.save(registry.list())
     return _to_response(market)
 
 
@@ -61,8 +63,10 @@ def update_market_status(
     market_id: str, body: StatusUpdate, request: Request
 ) -> MarketResponse:
     registry = request.app.state.market_registry
+    store = request.app.state.market_store
     try:
         registry.update_status(market_id, body.status)
+        store.save(registry.list())
         return _to_response(registry.get(market_id))
     except MarketNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
