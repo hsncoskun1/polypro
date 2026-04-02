@@ -2,7 +2,8 @@
 
 Translates external mapped_status strings and failure flags
 into AdapterOutcomeStatus enum values.
-Fail-closed: unknown status defaults to ADAPTER_SUBMITTED (not silently accepted).
+Fail-closed: unknown or unrecognized status → ADAPTER_TERMINAL_FAILURE.
+Unknown exchange response must never be treated as a forward-moving state.
 """
 from app.domain.live.adapter_outcome_status import AdapterOutcomeStatus
 
@@ -31,10 +32,10 @@ def translate_status(
       1. terminal_failure=True → ADAPTER_TERMINAL_FAILURE
       2. retryable=True        → ADAPTER_RETRYABLE_FAILURE
       3. mapped_status lookup  → enum value
-      4. Unknown status        → ADAPTER_SUBMITTED (fail-closed, not silently ok)
+      4. Unknown status        → ADAPTER_TERMINAL_FAILURE (fail-closed, never forward-moving)
     """
     if terminal_failure:
         return AdapterOutcomeStatus.ADAPTER_TERMINAL_FAILURE
     if retryable:
         return AdapterOutcomeStatus.ADAPTER_RETRYABLE_FAILURE
-    return _STATUS_MAP.get(mapped_status, AdapterOutcomeStatus.ADAPTER_SUBMITTED)
+    return _STATUS_MAP.get(mapped_status, AdapterOutcomeStatus.ADAPTER_TERMINAL_FAILURE)

@@ -118,8 +118,8 @@ class TestAdapterErrorTranslator:
         assert translate_status("") == AdapterOutcomeStatus.ADAPTER_SUBMITTED
 
     def test_unknown_status_fail_closed(self):
-        # Unknown status → ADAPTER_SUBMITTED (fail-closed, not silently ok)
-        assert translate_status("unknown_xyz") == AdapterOutcomeStatus.ADAPTER_SUBMITTED
+        # Unknown status → ADAPTER_TERMINAL_FAILURE (fail-closed, never forward-moving)
+        assert translate_status("unknown_xyz") == AdapterOutcomeStatus.ADAPTER_TERMINAL_FAILURE
 
 
 # ---------------------------------------------------------------------------
