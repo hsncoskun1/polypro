@@ -1,17 +1,17 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RawMarketItemSchema(BaseModel):
-    market_id: str
-    title: str
-    timeframe: str
+    market_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    timeframe: str = Field(min_length=1)
 
 
 class DiscoveryTriggerRequest(BaseModel):
-    source_name: str = "unknown"
-    items: list[RawMarketItemSchema] = []
+    source_name: str = Field(default="unknown", min_length=1)
+    items: list[RawMarketItemSchema]
 
 
 class DiscoverySummarySchema(BaseModel):
