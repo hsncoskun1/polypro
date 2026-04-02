@@ -1,10 +1,7 @@
 import sqlite3
 import pathlib
-import logging
 
 from app.domain.markets.model import Market, MarketStatus, Timeframe
-
-logger = logging.getLogger(__name__)
 
 
 class SqliteMarketStore:
@@ -45,7 +42,9 @@ class SqliteMarketStore:
                     )
                 )
             except ValueError as exc:
-                logger.warning("Skipping corrupt market row %r: %s", row[0], exc)
+                raise ValueError(
+                    f"Corrupt market row in DB (market_id={row[0]!r}): {exc}"
+                ) from exc
         return markets
 
     def save(self, markets: list[Market]) -> None:

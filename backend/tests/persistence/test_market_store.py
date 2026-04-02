@@ -2,6 +2,7 @@ import sqlite3 as _sqlite3
 import shutil
 import sys
 import pytest
+import re
 from app.domain.markets.model import Market, MarketStatus, Timeframe
 from app.persistence.markets import SqliteMarketStore
 
@@ -73,15 +74,22 @@ def test_save_empty_list_clears_store(tmp_path):
 
 # ── hardening ─────────────────────────────────────────────────────────────────
 
-def test_load_skips_corrupt_rows_with_invalid_enum(tmp_path):
+def test_load_raises_on_corrupt_timeframe(tmp_path):
     db_path = str(tmp_path / "markets.db")
     store = SqliteMarketStore(db_path)
     with _sqlite3.connect(db_path) as conn:
-        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-good", "Good", "1W", "active"))
-        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-bad", "Bad", "INVALID_TF", "active"))
-    loaded = store.load()
-    assert len(loaded) == 1
-    assert loaded[0].market_id == "mkt-good"
+        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-001", "Test", "INVALID_TF", "active"))
+    with pytest.raises(ValueError, match="mkt-001"):
+        store.load()
+
+
+def test_load_raises_on_corrupt_status(tmp_path):
+    db_path = str(tmp_path / "markets.db")
+    store = SqliteMarketStore(db_path)
+    with _sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-001", "Test", "1W", "INVALID_STATUS"))
+    with pytest.raises(ValueError, match="mkt-001"):
+        store.load()
 
 
 @pytest.mark.skipif(
