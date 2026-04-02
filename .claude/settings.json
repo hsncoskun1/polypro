@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "bypassPermissions",
-    "allow": ["Bash", "Write", "Edit", "Read", "Glob", "Grep", "WebFetch", "WebSearch"]
+    "defaultMode": "bypassPermissions"
   }
 }
