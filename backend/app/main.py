@@ -25,6 +25,6 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="POLYPRO", version="0.2.5", lifespan=lifespan)
+app = FastAPI(title="POLYPRO", version="0.2.6", lifespan=lifespan)
 app.include_router(health_router)
 app.include_router(markets_router)
