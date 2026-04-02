@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class DiscoveryTriggerRequest(BaseModel):
     source_name: str = Field(default="polymarket", min_length=1)
     url: str | None = Field(default=None)
-    timeout: float = Field(default=10.0, gt=0)
+    timeout: float = Field(default=10.0, gt=0, le=60.0)
 
 
 class DiscoverySummarySchema(BaseModel):

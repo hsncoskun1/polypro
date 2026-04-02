@@ -11,6 +11,8 @@ from app.services.discovery import DiscoveryResult
 
 TRIGGER_URL = "/api/v1/discovery/trigger"
 _PATCH_TARGET = "app.api.discovery.run_polymarket_fetch_to_discovery"
+_CLIENT_PATCH = "app.api.discovery.PolymarketClient"
+_CONFIG_URL_PATCH = "app.api.discovery.POLYMARKET_URL"
 
 _RAN_AT = datetime(2026, 4, 2, 12, 0, 0, tzinfo=timezone.utc)
 
@@ -137,3 +139,43 @@ def test_trigger_empty_source_name_returns_422(client):
 def test_trigger_invalid_timeout_returns_422(client):
     response = client.post(TRIGGER_URL, json={"timeout": -1})
     assert response.status_code == 422
+
+
+def test_trigger_zero_timeout_returns_422(client):
+    response = client.post(TRIGGER_URL, json={"timeout": 0})
+    assert response.status_code == 422
+
+
+def test_trigger_timeout_above_max_returns_422(client):
+    response = client.post(TRIGGER_URL, json={"timeout": 120})
+    assert response.status_code == 422
+
+
+# ── URL / timeout wiring ──────────────────────────────────────────────────────
+
+def test_trigger_uses_config_url_when_body_url_is_null(client):
+    with patch(_PATCH_TARGET, return_value=_make_result()), \
+         patch(_CLIENT_PATCH) as mock_client_cls, \
+         patch(_CONFIG_URL_PATCH, "https://test-polymarket.example.com/markets"):
+        response = client.post(TRIGGER_URL, json={})
+    call_args = mock_client_cls.call_args
+    assert call_args[0][0] == "https://test-polymarket.example.com/markets"
+    assert response.status_code == 200
+
+
+def test_trigger_uses_body_url_when_provided(client):
+    with patch(_PATCH_TARGET, return_value=_make_result()), \
+         patch(_CLIENT_PATCH) as mock_client_cls:
+        response = client.post(TRIGGER_URL, json={"url": "https://override.example.com/markets"})
+    call_args = mock_client_cls.call_args
+    assert call_args[0][0] == "https://override.example.com/markets"
+    assert response.status_code == 200
+
+
+def test_trigger_passes_timeout_to_client(client):
+    with patch(_PATCH_TARGET, return_value=_make_result()), \
+         patch(_CLIENT_PATCH) as mock_client_cls:
+        response = client.post(TRIGGER_URL, json={"timeout": 5.0})
+    call_kwargs = mock_client_cls.call_args[1]
+    assert call_kwargs.get("timeout") == 5.0
+    assert response.status_code == 200
