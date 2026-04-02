@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.api.deps import verify_trigger_auth
 from app.api.schemas.discovery import (
     DiscoverySummarySchema,
     DiscoveryTriggerRequest,
@@ -15,7 +16,11 @@ router = APIRouter(prefix="/api/v1/discovery", tags=["discovery"])
 
 
 @router.post("/trigger", response_model=DiscoveryTriggerResponse)
-def trigger_discovery(body: DiscoveryTriggerRequest, request: Request) -> DiscoveryTriggerResponse:
+def trigger_discovery(
+    body: DiscoveryTriggerRequest,
+    request: Request,
+    _: None = Depends(verify_trigger_auth),
+) -> DiscoveryTriggerResponse:
     registry = request.app.state.market_registry
     url = body.url or POLYMARKET_URL
     client = PolymarketClient(url, timeout=body.timeout)
