@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from app.adapters.discovery import RawPayloadItem
+from app.clients.timeframe_mapping import map_end_date_to_timeframe
 
 
 class ExternalPayloadMappingError(Exception):
@@ -16,7 +17,7 @@ class PolymarketMarketPayload:
 
     condition_id → market_id
     question     → title
-    end_date     → timeframe (raw string, validated by normalization layer)
+    end_date     → timeframe (ISO 8601 date string, converted via map_end_date_to_timeframe)
     """
 
     condition_id: str
@@ -28,7 +29,8 @@ def map_to_raw_payload_item(payload: PolymarketMarketPayload) -> RawPayloadItem:
     """Map a PolymarketMarketPayload to a RawPayloadItem.
 
     Raises ExternalPayloadMappingError if any required field is empty or whitespace-only.
-    No silent fallback.
+    Raises TimeframeMappingError (from timeframe_mapping) if end_date is a past date
+    or cannot be parsed as ISO 8601. No silent fallback.
     """
     condition_id = payload.condition_id.strip()
     question = payload.question.strip()
@@ -41,8 +43,10 @@ def map_to_raw_payload_item(payload: PolymarketMarketPayload) -> RawPayloadItem:
     if not end_date:
         raise ExternalPayloadMappingError(f"end_date is empty (condition_id={condition_id!r})")
 
+    timeframe = map_end_date_to_timeframe(end_date)
+
     return RawPayloadItem(
         market_id=condition_id,
         title=question,
-        timeframe=end_date,
+        timeframe=timeframe.value,
     )
