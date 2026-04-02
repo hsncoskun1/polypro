@@ -179,3 +179,46 @@ def test_trigger_passes_timeout_to_client(client):
     call_kwargs = mock_client_cls.call_args[1]
     assert call_kwargs.get("timeout") == 5.0
     assert response.status_code == 200
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def auth_client(tmp_path):
+    os.environ["MARKET_STORE_PATH"] = str(tmp_path / "test_markets.db")
+    os.environ["TRIGGER_AUTH_TOKEN"] = "test-secret"
+    with TestClient(app) as c:
+        yield c
+    os.environ.pop("MARKET_STORE_PATH", None)
+    os.environ.pop("TRIGGER_AUTH_TOKEN", None)
+
+
+def test_trigger_missing_auth_returns_401(auth_client):
+    response = auth_client.post(TRIGGER_URL, json={})
+    assert response.status_code == 401
+
+
+def test_trigger_wrong_token_returns_401(auth_client):
+    response = auth_client.post(
+        TRIGGER_URL, json={}, headers={"Authorization": "Bearer wrong-token"}
+    )
+    assert response.status_code == 401
+
+
+def test_trigger_correct_token_returns_200(auth_client):
+    with patch(_PATCH_TARGET, return_value=_make_result()):
+        response = auth_client.post(
+            TRIGGER_URL, json={}, headers={"Authorization": "Bearer test-secret"}
+        )
+    assert response.status_code == 200
+
+
+def test_trigger_correct_token_response_shape_intact(auth_client):
+    with patch(_PATCH_TARGET, return_value=_make_result(added=1)):
+        response = auth_client.post(
+            TRIGGER_URL, json={}, headers={"Authorization": "Bearer test-secret"}
+        )
+    data = response.json()
+    assert "summary" in data
+    assert "source_name" in data
+    assert "ran_at" in data
