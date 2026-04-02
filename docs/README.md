@@ -64,4 +64,4 @@
 | v0.6.2 | Merged to main | [v0.6.2-admin-operational-control-reporting-pack.md](releases/v0.6.2-admin-operational-control-reporting-pack.md) |
 | v0.7.0 | Merged to main | [v0.7.0-live-readiness-foundation-pack.md](releases/v0.7.0-live-readiness-foundation-pack.md) |
 | v0.7.1 | Merged to main | [v0.7.1-live-credential-secrets-pack.md](releases/v0.7.1-live-credential-secrets-pack.md) |
-| v0.7.2 | In progress | [v0.7.2-live-execution-preflight-outbound-guard-pack.md](releases/v0.7.2-live-execution-preflight-outbound-guard-pack.md) |
+| v0.7.2 | Merged to main | [v0.7.2-live-execution-preflight-outbound-guard-pack.md](releases/v0.7.2-live-execution-preflight-outbound-guard-pack.md) |
