@@ -1,7 +1,9 @@
-"""Tests for exit policy — ExitContext, ExitDecision, evaluate_exit_policy()."""
+"""Tests for exit policy — ExitContext, ExitDecision, evaluate_exit_policy(),
+evaluate_exit_policy_with_force_sell()."""
 from app.domain.exit.exit_context import ExitContext
 from app.domain.exit.exit_decision import ExitDecision
-from app.domain.exit.exit_policy import evaluate_exit_policy
+from app.domain.exit.exit_policy import evaluate_exit_policy, evaluate_exit_policy_with_force_sell
+from app.domain.force_sell.force_sell_context import ForceSellContext
 
 
 # ---------------------------------------------------------------------------
@@ -205,3 +207,130 @@ class TestEvaluateExitPolicy:
     def test_reason_code_empty_when_no_exit(self):
         ctx = _ctx()
         assert evaluate_exit_policy(ctx).exit_reason == ""
+
+
+# ---------------------------------------------------------------------------
+# Helpers — force sell context
+# ---------------------------------------------------------------------------
+
+def _fs_ctx(
+    time_remaining=60.0,
+    force_sell_time_enabled=False,
+    force_sell_time_seconds=10.0,
+    force_sell_pnl_loss_enabled=False,
+    force_sell_entry_delta_enabled=False,
+    force_sell_entry_delta_threshold=0.10,
+    force_sell_logic="any",
+    entry_fill_price=0.50,
+    current_price=0.50,
+    current_pnl=0.0,
+    side="YES",
+):
+    return ForceSellContext(
+        time_remaining=time_remaining,
+        force_sell_time_enabled=force_sell_time_enabled,
+        force_sell_time_seconds=force_sell_time_seconds,
+        force_sell_pnl_loss_enabled=force_sell_pnl_loss_enabled,
+        force_sell_entry_delta_enabled=force_sell_entry_delta_enabled,
+        force_sell_entry_delta_threshold=force_sell_entry_delta_threshold,
+        force_sell_logic=force_sell_logic,
+        entry_fill_price=entry_fill_price,
+        current_price=current_price,
+        current_pnl=current_pnl,
+        side=side,
+    )
+
+
+# ---------------------------------------------------------------------------
+# TestExitPolicyWithForceSell
+# ---------------------------------------------------------------------------
+
+class TestExitPolicyWithForceSell:
+    def test_force_sell_time_takes_priority_over_normal_exit(self):
+        """Force sell triggers → exit_reason is force sell reason, not stop_loss."""
+        exit_ctx = _ctx(
+            entry_price=0.5, current_price=0.25, side="YES",
+            stop_loss_threshold=0.25,  # stop_loss would normally trigger
+        )
+        fs_ctx = _fs_ctx(
+            time_remaining=2.0,
+            force_sell_time_enabled=True,
+            force_sell_time_seconds=5.0,
+        )
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "force_sell_time"
+
+    def test_no_force_sell_delegates_to_exit_policy(self):
+        """No force sell → normal exit policy applies (stop_loss)."""
+        exit_ctx = _ctx(
+            entry_price=0.5, current_price=0.25, side="YES",
+            stop_loss_threshold=0.25,
+        )
+        fs_ctx = _fs_ctx()  # all conditions disabled
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "stop_loss"
+
+    def test_no_force_sell_no_normal_exit(self):
+        """No force sell, no normal exit → no exit."""
+        exit_ctx = _ctx()
+        fs_ctx = _fs_ctx()
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is False
+        assert result.exit_reason == ""
+
+    def test_force_sell_combined_any_exit_reason(self):
+        """force_sell_combined_any → exit_reason is force_sell_combined_any."""
+        exit_ctx = _ctx()
+        fs_ctx = _fs_ctx(
+            force_sell_time_enabled=True,
+            force_sell_time_seconds=5.0,
+            time_remaining=3.0,
+            force_sell_pnl_loss_enabled=True,
+            current_pnl=0.10,  # pnl positive → only time fires
+            force_sell_logic="any",
+        )
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "force_sell_combined_any"
+
+    def test_force_sell_combined_all_exit_reason(self):
+        """force_sell_combined_all → exit_reason is force_sell_combined_all."""
+        exit_ctx = _ctx()
+        fs_ctx = _fs_ctx(
+            force_sell_time_enabled=True,
+            force_sell_time_seconds=5.0,
+            time_remaining=3.0,
+            force_sell_pnl_loss_enabled=True,
+            current_pnl=-0.10,
+            force_sell_logic="all",
+        )
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "force_sell_combined_all"
+
+    def test_force_sell_pnl_loss_exit_reason(self):
+        """force_sell_pnl_loss triggered → exit_reason is force_sell_pnl_loss."""
+        exit_ctx = _ctx()
+        fs_ctx = _fs_ctx(
+            force_sell_pnl_loss_enabled=True,
+            current_pnl=-0.05,
+        )
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "force_sell_pnl_loss"
+
+    def test_force_sell_entry_delta_exit_reason(self):
+        """force_sell_entry_delta triggered → exit_reason is force_sell_entry_delta."""
+        exit_ctx = _ctx()
+        fs_ctx = _fs_ctx(
+            force_sell_entry_delta_enabled=True,
+            force_sell_entry_delta_threshold=0.10,
+            entry_fill_price=0.60,
+            current_price=0.45,
+            side="YES",
+        )
+        result = evaluate_exit_policy_with_force_sell(exit_ctx, fs_ctx)
+        assert result.should_exit is True
+        assert result.exit_reason == "force_sell_entry_delta"
