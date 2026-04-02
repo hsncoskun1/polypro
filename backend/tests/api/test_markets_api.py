@@ -8,7 +8,7 @@ MARKET_PAYLOAD = {"market_id": "mkt-001", "title": "Test Market", "timeframe": "
 
 @pytest.fixture()
 def client(tmp_path):
-    os.environ["MARKET_STORE_PATH"] = str(tmp_path / "test_markets.json")
+    os.environ["MARKET_STORE_PATH"] = str(tmp_path / "test_markets.db")
     with TestClient(app) as c:
         yield c
     os.environ.pop("MARKET_STORE_PATH", None)
@@ -139,7 +139,7 @@ def test_create_market_empty_body_returns_422(client):
 # ── persistence integration ───────────────────────────────────────────────────
 
 def test_market_persists_across_restart(tmp_path):
-    store_path = str(tmp_path / "markets.json")
+    store_path = str(tmp_path / "markets.db")
     os.environ["MARKET_STORE_PATH"] = store_path
     try:
         with TestClient(app) as c:

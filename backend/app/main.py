@@ -5,17 +5,17 @@ from app.api.health import router as health_router
 from app.api.markets import router as markets_router
 from app.core.logger import get_logger
 from app.domain.markets.registry import InMemoryMarketRegistry
-from app.persistence.markets import JsonMarketStore
+from app.persistence.markets import SqliteMarketStore
 
 logger = get_logger(__name__)
 
-_DEFAULT_STORE_PATH = "data/markets.json"
+_DEFAULT_STORE_PATH = "data/markets.db"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store_path = os.environ.get("MARKET_STORE_PATH", _DEFAULT_STORE_PATH)
-    store = JsonMarketStore(store_path)
+    store = SqliteMarketStore(store_path)
     registry = InMemoryMarketRegistry()
     for market in store.load():
         registry.add(market)

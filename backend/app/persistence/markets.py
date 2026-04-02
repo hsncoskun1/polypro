@@ -1,38 +1,52 @@
-import json
+import sqlite3
 import pathlib
 
 from app.domain.markets.model import Market, MarketStatus, Timeframe
 
 
-class JsonMarketStore:
-    """Persists market registry state to a JSON file."""
+class SqliteMarketStore:
+    """Persists market registry state to a SQLite database."""
 
     def __init__(self, path: str) -> None:
         self._path = pathlib.Path(path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _init_db(self) -> None:
+        with sqlite3.connect(self._path) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS markets (
+                    market_id TEXT PRIMARY KEY,
+                    title     TEXT NOT NULL,
+                    timeframe TEXT NOT NULL,
+                    status    TEXT NOT NULL
+                )
+                """
+            )
 
     def load(self) -> list[Market]:
-        if not self._path.exists():
-            return []
-        data = json.loads(self._path.read_text(encoding="utf-8"))
+        with sqlite3.connect(self._path) as conn:
+            rows = conn.execute(
+                "SELECT market_id, title, timeframe, status FROM markets"
+            ).fetchall()
         return [
             Market(
-                market_id=d["market_id"],
-                title=d["title"],
-                timeframe=Timeframe(d["timeframe"]),
-                status=MarketStatus(d["status"]),
+                market_id=row[0],
+                title=row[1],
+                timeframe=Timeframe(row[2]),
+                status=MarketStatus(row[3]),
             )
-            for d in data
+            for row in rows
         ]
 
     def save(self, markets: list[Market]) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = [
-            {
-                "market_id": m.market_id,
-                "title": m.title,
-                "timeframe": m.timeframe.value,
-                "status": m.status.value,
-            }
-            for m in markets
-        ]
-        self._path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        with sqlite3.connect(self._path) as conn:
+            conn.execute("DELETE FROM markets")
+            conn.executemany(
+                "INSERT INTO markets (market_id, title, timeframe, status) VALUES (?, ?, ?, ?)",
+                [
+                    (m.market_id, m.title, m.timeframe.value, m.status.value)
+                    for m in markets
+                ],
+            )
