@@ -233,3 +233,36 @@ def test_trigger_correct_token_response_shape_intact(client):
     assert "summary" in data
     assert "source_name" in data
     assert "ran_at" in data
+
+
+# ── Run guard ─────────────────────────────────────────────────────────────────
+
+def test_trigger_returns_409_when_guard_locked(client):
+    from app.core.run_guard import DiscoveryRunGuard
+    locked_guard = DiscoveryRunGuard()
+    locked_guard.acquire()
+    client.app.state.discovery_run_guard = locked_guard
+    try:
+        response = client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
+        assert response.status_code == 409
+    finally:
+        locked_guard.release()
+
+
+def test_trigger_guard_released_after_successful_run(client):
+    with patch(_PATCH_TARGET, return_value=_make_result()):
+        client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
+    guard = client.app.state.discovery_run_guard
+    acquired = guard.acquire()
+    assert acquired is True
+    guard.release()
+
+
+def test_trigger_guard_released_after_502_error(client):
+    from app.clients.polymarket import PolymarketClientError
+    with patch(_PATCH_TARGET, side_effect=PolymarketClientError("fail")):
+        client.post(TRIGGER_URL, json={}, headers=_AUTH_HEADER)
+    guard = client.app.state.discovery_run_guard
+    acquired = guard.acquire()
+    assert acquired is True
+    guard.release()
