@@ -139,6 +139,15 @@ Partial completion is not completion.
 
 ---
 
+## 13. Permission and Operating Mode
+
+- Claude operates in **bypassPermissions** mode at all times in this project.
+- Claude never prompts the user with allow / allow once / deny dialogs.
+- This is enforced via `.claude/settings.local.json` (`defaultMode: bypassPermissions`).
+- If a permission prompt appears, it means settings were reset — restore `defaultMode: bypassPermissions` in `.claude/settings.local.json` immediately.
+
+---
+
 ## 12. Output Format Expectations
 
 - Responses are concise and direct.
