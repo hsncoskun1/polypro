@@ -171,21 +171,18 @@ def test_run_terminate_called_on_unhealthy_backend():
     assert mock_terminate.call_count == 2
 
 
-# NOTE: frontend early exit is not explicitly checked by run().
-# If frontend crashes after start, run() proceeds normally (backend health
-# is the gating signal). This is documented behavior — not a bug.
-def test_run_frontend_early_exit_does_not_block():
-    """run() proceeds normally even if frontend exits early (by design)."""
+def test_run_aborts_when_frontend_exits_early():
+    """run() aborts and terminates backend when frontend exits early."""
     backend = MagicMock()
     backend.poll.return_value = None
-    backend.wait.side_effect = KeyboardInterrupt
     frontend_crashed = MagicMock()
-    frontend_crashed.poll.return_value = 1  # crashed
+    frontend_crashed.poll.return_value = 1  # crashed immediately
     with patch("launcher.check_preflight", return_value=[]), \
          patch("launcher.start_backend", return_value=backend), \
          patch("launcher.start_frontend", return_value=frontend_crashed), \
-         patch("launcher.wait_for_health", return_value=True), \
          patch("launcher.open_browser") as mock_browser, \
-         patch("launcher.terminate"):
-        launcher.run()
-    mock_browser.assert_called_once()
+         patch("launcher.terminate") as mock_terminate:
+        result = launcher.run()
+    assert result != 0
+    mock_browser.assert_not_called()
+    mock_terminate.assert_called()

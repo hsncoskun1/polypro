@@ -136,6 +136,12 @@ def run() -> int:
     print("[launcher] Starting frontend...")
     frontend = start_frontend()
 
+    # Brief pause — let npm fail fast if node_modules are broken
+    time.sleep(0.5)
+    if _check_early_exit(frontend, "frontend"):
+        terminate(backend, "backend")
+        return 1
+
     # 4. Wait for backend health
     print(f"[launcher] Waiting for backend health ({HEALTH_TIMEOUT}s timeout)...")
     healthy = wait_for_health(HEALTH_URL, HEALTH_TIMEOUT, HEALTH_INTERVAL)
