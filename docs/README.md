@@ -56,4 +56,4 @@
 | v0.5.1 | Merged to main | [v0.5.1-exit-policy-foundation-pack.md](releases/v0.5.1-exit-policy-foundation-pack.md) |
 | v0.5.2 | Merged to main | [v0.5.2-force-sell-pack.md](releases/v0.5.2-force-sell-pack.md) |
 | v0.5.3 | Merged to main | [v0.5.3-position-lifecycle-persistence-pack.md](releases/v0.5.3-position-lifecycle-persistence-pack.md) |
-| v0.5.4 | In progress | [v0.5.4-execution-fill-pnl-accounting-pack.md](releases/v0.5.4-execution-fill-pnl-accounting-pack.md) |
+| v0.5.4 | Merged to main | [v0.5.4-execution-fill-pnl-accounting-pack.md](releases/v0.5.4-execution-fill-pnl-accounting-pack.md) |
