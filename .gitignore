@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+dist/
+build/
+.env
+.env.*
+
+# Node
+node_modules/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code — local per-user settings, not committed
+.claude/settings.local.json
