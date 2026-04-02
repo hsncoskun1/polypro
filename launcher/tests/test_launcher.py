@@ -139,3 +139,50 @@ def test_run_opens_browser_when_healthy():
          patch("launcher.terminate"):
         launcher.run()
     mock_browser.assert_called_once_with(launcher.FRONTEND_URL)
+
+
+def test_run_terminate_called_on_both_processes():
+    """terminate() is called for both backend and frontend on shutdown."""
+    proc = MagicMock()
+    proc.poll.return_value = None
+    proc.wait.side_effect = KeyboardInterrupt
+    with patch("launcher.check_preflight", return_value=[]), \
+         patch("launcher.start_backend", return_value=proc), \
+         patch("launcher.start_frontend", return_value=proc), \
+         patch("launcher.wait_for_health", return_value=True), \
+         patch("launcher.open_browser"), \
+         patch("launcher.terminate") as mock_terminate:
+        launcher.run()
+    assert mock_terminate.call_count == 2
+
+
+def test_run_terminate_called_on_unhealthy_backend():
+    """Both processes are terminated when backend health check fails."""
+    backend = MagicMock()
+    backend.poll.return_value = None
+    frontend = MagicMock()
+    frontend.poll.return_value = None
+    with patch("launcher.check_preflight", return_value=[]), \
+         patch("launcher.start_backend", return_value=backend), \
+         patch("launcher.start_frontend", return_value=frontend), \
+         patch("launcher.wait_for_health", return_value=False), \
+         patch("launcher.terminate") as mock_terminate:
+        launcher.run()
+    assert mock_terminate.call_count == 2
+
+
+def test_run_aborts_when_frontend_exits_early():
+    """run() aborts and terminates backend when frontend exits early."""
+    backend = MagicMock()
+    backend.poll.return_value = None
+    frontend_crashed = MagicMock()
+    frontend_crashed.poll.return_value = 1  # crashed immediately
+    with patch("launcher.check_preflight", return_value=[]), \
+         patch("launcher.start_backend", return_value=backend), \
+         patch("launcher.start_frontend", return_value=frontend_crashed), \
+         patch("launcher.open_browser") as mock_browser, \
+         patch("launcher.terminate") as mock_terminate:
+        result = launcher.run()
+    assert result != 0
+    mock_browser.assert_not_called()
+    mock_terminate.assert_called()
