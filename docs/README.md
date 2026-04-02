@@ -54,3 +54,4 @@
 | v0.4.3 | Merged to main | [v0.4.3-verification-gate-shell.md](releases/v0.4.3-verification-gate-shell.md) |
 | v0.5.0 | Merged to main | [v0.5.0-simulation-execution-foundation-pack.md](releases/v0.5.0-simulation-execution-foundation-pack.md) |
 | v0.5.1 | Merged to main | [v0.5.1-exit-policy-foundation-pack.md](releases/v0.5.1-exit-policy-foundation-pack.md) |
+| v0.5.2 | In progress | [v0.5.2-force-sell-pack.md](releases/v0.5.2-force-sell-pack.md) |

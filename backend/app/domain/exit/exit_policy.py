@@ -9,12 +9,16 @@ Design decisions:
 - Execution is separate from decision: this evaluator produces an ExitDecision;
   the caller applies it via simulate_exit() in the execution layer.
 - Never returns None. All paths return a fully populated ExitDecision.
-- Force sell: NOT in scope (v0.5.2+).
-- Persistence: NOT in scope (v0.5.2+).
+- Force sell (v0.5.2): integrated via evaluate_exit_policy_with_force_sell().
+  Force sell is evaluated first; if triggered, it takes priority over all other
+  conditions. evaluate_exit_policy() is unchanged.
+- Persistence: NOT in scope (v0.5.3+).
 - Runtime state is not mutated here — evaluator is a pure function.
 """
 from app.domain.exit.exit_context import ExitContext
 from app.domain.exit.exit_decision import ExitDecision
+from app.domain.force_sell.force_sell_context import ForceSellContext
+from app.domain.force_sell.force_sell_evaluator import evaluate_force_sell
 
 
 def evaluate_exit_policy(ctx: ExitContext) -> ExitDecision:
@@ -46,3 +50,29 @@ def evaluate_exit_policy(ctx: ExitContext) -> ExitDecision:
         return ExitDecision(should_exit=True, exit_reason="timeout")
 
     return ExitDecision(should_exit=False, exit_reason="")
+
+
+def evaluate_exit_policy_with_force_sell(
+    exit_ctx: ExitContext,
+    force_sell_ctx: ForceSellContext,
+) -> ExitDecision:
+    """Evaluate exit policy with force sell integration.
+
+    Force sell is evaluated first. If it triggers, its reason is returned as
+    the exit reason and normal exit policy conditions are not checked.
+    If force sell does not trigger, delegates to evaluate_exit_policy().
+
+    Args:
+        exit_ctx: The exit context with position data and thresholds.
+        force_sell_ctx: The force sell context with condition config.
+
+    Returns:
+        ExitDecision — force sell reason if triggered, otherwise normal exit decision.
+    """
+    force_sell_decision = evaluate_force_sell(force_sell_ctx)
+    if force_sell_decision.should_force_sell:
+        return ExitDecision(
+            should_exit=True,
+            exit_reason=force_sell_decision.reason,
+        )
+    return evaluate_exit_policy(exit_ctx)
