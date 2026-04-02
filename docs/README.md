@@ -49,3 +49,4 @@
 | v0.3.19 | Merged to main | [v0.3.19-discovery-scheduler-shell.md](releases/v0.3.19-discovery-scheduler-shell.md) |
 | v0.3.20 | Merged to main | [v0.3.20-discovery-scheduler-hardening.md](releases/v0.3.20-discovery-scheduler-hardening.md) |
 | v0.4.0 | Merged to main | [v0.4.0-trading-decision-foundation.md](releases/v0.4.0-trading-decision-foundation.md) |
+| v0.4.1 | In progress | [v0.4.1-rule-governance-visibility-pack.md](releases/v0.4.1-rule-governance-visibility-pack.md) |
