@@ -77,3 +77,4 @@
 | v0.8.2 | Merged to main | [v0.8.2-production-client-end-to-end-backend-readiness-pack.md](releases/v0.8.2-production-client-end-to-end-backend-readiness-pack.md) |
 | v0.8.3 | Merged to main | [v0.8.3-backend-final-integration-safe-nonlive-validation-pack.md](releases/v0.8.3-backend-final-integration-safe-nonlive-validation-pack.md) |
 | v0.8.4 | Merged to main | [v0.8.4-backend-release-readiness-live-test-gate-pack.md](releases/v0.8.4-backend-release-readiness-live-test-gate-pack.md) |
+| v0.8.5 | In progress | [v0.8.5-frontend-launcher-surface-wiring-final-app-integration-pack.md](releases/v0.8.5-frontend-launcher-surface-wiring-final-app-integration-pack.md) |
