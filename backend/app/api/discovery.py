@@ -21,15 +21,21 @@ def trigger_discovery(
     request: Request,
     _: None = Depends(verify_trigger_auth),
 ) -> DiscoveryTriggerResponse:
-    registry = request.app.state.market_registry
-    url = body.url or POLYMARKET_URL
-    client = PolymarketClient(url, timeout=body.timeout)
+    guard = request.app.state.discovery_run_guard
+    if not guard.acquire():
+        raise HTTPException(status_code=409, detail="Discovery run already in progress")
     try:
-        result = run_polymarket_fetch_to_discovery(client, registry, source_name=body.source_name)
-    except PolymarketClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-    except (ClientPayloadMappingError, TimeframeMappingError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        registry = request.app.state.market_registry
+        url = body.url or POLYMARKET_URL
+        client = PolymarketClient(url, timeout=body.timeout)
+        try:
+            result = run_polymarket_fetch_to_discovery(client, registry, source_name=body.source_name)
+        except PolymarketClientError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        except (ClientPayloadMappingError, TimeframeMappingError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+    finally:
+        guard.release()
     return DiscoveryTriggerResponse(
         summary=DiscoverySummarySchema(
             added_count=result.summary.added_count,
