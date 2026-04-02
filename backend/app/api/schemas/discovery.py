@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -20,3 +21,11 @@ class DiscoveryTriggerResponse(BaseModel):
     summary: DiscoverySummarySchema
     source_name: str
     ran_at: datetime
+
+
+class DiscoveryRunStatusResponse(BaseModel):
+    is_running: bool
+    last_finished_at: datetime | None = None
+    last_success_at: datetime | None = None
+    last_result_summary: dict[str, Any] | None = None
+    last_error: str | None = None

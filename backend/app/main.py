@@ -6,6 +6,7 @@ from app.api.health import router as health_router
 from app.api.markets import router as markets_router
 from app.core.logger import get_logger
 from app.core.run_guard import DiscoveryRunGuard
+from app.core.run_status import DiscoveryRunStatus
 from app.domain.markets.registry import InMemoryMarketRegistry
 from app.persistence.markets import SqliteMarketStore
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     app.state.market_registry = registry
     app.state.market_store = store
     app.state.discovery_run_guard = DiscoveryRunGuard()
+    app.state.discovery_run_status = DiscoveryRunStatus()
     logger.info("POLYPRO backend starting up")
     yield
 
