@@ -33,3 +33,4 @@
 | v0.3.3 | Merged to main | [v0.3.3-discovery-source-adapter-shell.md](releases/v0.3.3-discovery-source-adapter-shell.md) |
 | v0.3.4 | Merged to main | [v0.3.4-discovery-trigger-adapter-integration.md](releases/v0.3.4-discovery-trigger-adapter-integration.md) |
 | v0.3.5 | Merged to main | [v0.3.5-external-payload-contract-shell.md](releases/v0.3.5-external-payload-contract-shell.md) |
+| v0.3.6 | In progress | [v0.3.6-external-payload-adapter-wiring.md](releases/v0.3.6-external-payload-adapter-wiring.md) |
