@@ -30,17 +30,25 @@ class SqliteMarketStore:
             rows = conn.execute(
                 "SELECT market_id, title, timeframe, status FROM markets"
             ).fetchall()
-        return [
-            Market(
-                market_id=row[0],
-                title=row[1],
-                timeframe=Timeframe(row[2]),
-                status=MarketStatus(row[3]),
-            )
-            for row in rows
-        ]
+        markets = []
+        for row in rows:
+            try:
+                markets.append(
+                    Market(
+                        market_id=row[0],
+                        title=row[1],
+                        timeframe=Timeframe(row[2]),
+                        status=MarketStatus(row[3]),
+                    )
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Corrupt market row in DB (market_id={row[0]!r}): {exc}"
+                ) from exc
+        return markets
 
     def save(self, markets: list[Market]) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self._path) as conn:
             conn.execute("DELETE FROM markets")
             conn.executemany(

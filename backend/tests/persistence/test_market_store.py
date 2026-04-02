@@ -1,4 +1,8 @@
+import sqlite3 as _sqlite3
+import shutil
+import sys
 import pytest
+import re
 from app.domain.markets.model import Market, MarketStatus, Timeframe
 from app.persistence.markets import SqliteMarketStore
 
@@ -66,3 +70,35 @@ def test_save_empty_list_clears_store(tmp_path):
     store.save([make_market()])
     store.save([])
     assert store.load() == []
+
+
+# ── hardening ─────────────────────────────────────────────────────────────────
+
+def test_load_raises_on_corrupt_timeframe(tmp_path):
+    db_path = str(tmp_path / "markets.db")
+    store = SqliteMarketStore(db_path)
+    with _sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-001", "Test", "INVALID_TF", "active"))
+    with pytest.raises(ValueError, match="mkt-001"):
+        store.load()
+
+
+def test_load_raises_on_corrupt_status(tmp_path):
+    db_path = str(tmp_path / "markets.db")
+    store = SqliteMarketStore(db_path)
+    with _sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO markets VALUES (?, ?, ?, ?)", ("mkt-001", "Test", "1W", "INVALID_STATUS"))
+    with pytest.raises(ValueError, match="mkt-001"):
+        store.load()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows file locking prevents rmtree of open SQLite file"
+)
+def test_save_recreates_parent_dir_if_removed(tmp_path):
+    db_dir = tmp_path / "subdir"
+    store = SqliteMarketStore(str(db_dir / "markets.db"))
+    shutil.rmtree(db_dir)
+    store.save([make_market()])
+    assert (db_dir / "markets.db").exists()
