@@ -24,3 +24,4 @@
 | v0.2.4 | Merged to main | [v0.2.4-market-registry-persistence-hardening.md](releases/v0.2.4-market-registry-persistence-hardening.md) |
 | v0.2.5 | Merged to main | [v0.2.5-market-discovery-shell.md](releases/v0.2.5-market-discovery-shell.md) |
 | v0.2.6 | Merged to main | [v0.2.6-market-discovery-source-contract.md](releases/v0.2.6-market-discovery-source-contract.md) |
+| v0.2.7 | In progress | [v0.2.7-market-discovery-normalization-shell.md](releases/v0.2.7-market-discovery-normalization-shell.md) |
