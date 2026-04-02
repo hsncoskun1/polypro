@@ -33,5 +33,14 @@ def run_pipeline(
 
     Fetches raw items from source, normalizes each, and applies to the
     registry. Returns a unified DiscoverySummary covering all stages.
+
+    Raises TypeError if source.fetch() does not return a list — explicit
+    failure, no silent skip or fallback.
     """
-    return run_discovery_from_raw(source.fetch(), registry)
+    items = source.fetch()
+    if not isinstance(items, list):
+        raise TypeError(
+            f"RawDiscoverySource.fetch() must return list[RawMarketItem],"
+            f" got {type(items).__name__!r}"
+        )
+    return run_discovery_from_raw(items, registry)

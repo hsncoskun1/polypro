@@ -52,6 +52,56 @@ def test_pipeline_counts_invalid_timeframe():
     assert summary.added_count == 0 and summary.skipped_invalid_count == 1
 
 
+def test_source_returning_none_raises_type_error():
+    class BrokenSource:
+        def fetch(self):
+            return None
+
+    with pytest.raises(TypeError, match="list"):
+        run_pipeline(BrokenSource(), InMemoryMarketRegistry())
+
+
+def test_source_returning_non_list_raises_type_error():
+    class BrokenSource:
+        def fetch(self):
+            return "not a list"
+
+    with pytest.raises(TypeError, match="list"):
+        run_pipeline(BrokenSource(), InMemoryMarketRegistry())
+
+
+def test_total_seen_always_equals_raw_input_count():
+    registry = InMemoryMarketRegistry()
+    source = StubRawDiscoverySource([
+        make_raw("mkt-001"),
+        RawMarketItem(market_id="", title="Bad", timeframe="1W"),
+        make_raw("mkt-002", timeframe="INVALID"),
+        make_raw("mkt-003"),
+        make_raw("mkt-003"),
+    ])
+    summary = run_pipeline(source, registry)
+    assert summary.total_seen == 5
+    assert (
+        summary.added_count
+        + summary.skipped_duplicate_count
+        + summary.skipped_invalid_count
+        == summary.total_seen
+    )
+
+
+def test_whitespace_only_fields_counted_as_invalid():
+    registry = InMemoryMarketRegistry()
+    source = StubRawDiscoverySource([
+        RawMarketItem(market_id="   ", title="Test", timeframe="1W"),
+        RawMarketItem(market_id="mkt-001", title="   ", timeframe="1W"),
+        RawMarketItem(market_id="mkt-002", title="Test", timeframe="   "),
+    ])
+    summary = run_pipeline(source, registry)
+    assert summary.added_count == 0
+    assert summary.skipped_invalid_count == 3
+    assert summary.total_seen == 3
+
+
 def test_pipeline_mixed_input_produces_correct_summary():
     registry = InMemoryMarketRegistry()
     source = StubRawDiscoverySource([
