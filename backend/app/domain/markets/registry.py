@@ -33,8 +33,8 @@ class InMemoryMarketRegistry:
         return self._markets[market_id]
 
     def list(self, active_only: bool = False) -> list[Market]:
-        """Return all markets, optionally filtered to active only."""
-        markets = list(self._markets.values())
+        """Return markets sorted by market_id, optionally filtered to active only."""
+        markets = sorted(self._markets.values(), key=lambda m: m.market_id)
         if active_only:
             markets = [m for m in markets if m.status == MarketStatus.ACTIVE]
         return markets

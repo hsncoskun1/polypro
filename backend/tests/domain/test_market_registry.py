@@ -95,3 +95,40 @@ def test_update_status_missing_market_raises():
     registry = InMemoryMarketRegistry()
     with pytest.raises(MarketNotFoundError):
         registry.update_status("nonexistent", MarketStatus.INACTIVE)
+
+
+# ── contract hardening ────────────────────────────────────────────────────────
+
+def test_list_order_is_deterministic_by_market_id():
+    registry = InMemoryMarketRegistry()
+    registry.add(make_market("mkt-003"))
+    registry.add(make_market("mkt-001"))
+    registry.add(make_market("mkt-002"))
+    ids = [m.market_id for m in registry.list()]
+    assert ids == ["mkt-001", "mkt-002", "mkt-003"]
+
+
+def test_list_active_order_is_deterministic_by_market_id():
+    registry = InMemoryMarketRegistry()
+    registry.add(make_market("mkt-003"))
+    registry.add(make_market("mkt-001"))
+    registry.add(make_market("mkt-002"))
+    registry.update_status("mkt-002", MarketStatus.INACTIVE)
+    ids = [m.market_id for m in registry.list(active_only=True)]
+    assert ids == ["mkt-001", "mkt-003"]
+
+
+def test_status_round_trip_active_inactive_active():
+    registry = InMemoryMarketRegistry()
+    registry.add(make_market())
+    registry.update_status("mkt-001", MarketStatus.INACTIVE)
+    assert registry.get("mkt-001").status == MarketStatus.INACTIVE
+    registry.update_status("mkt-001", MarketStatus.ACTIVE)
+    assert registry.get("mkt-001").status == MarketStatus.ACTIVE
+
+
+def test_update_same_status_is_idempotent():
+    registry = InMemoryMarketRegistry()
+    registry.add(make_market())
+    registry.update_status("mkt-001", MarketStatus.ACTIVE)
+    assert registry.get("mkt-001").status == MarketStatus.ACTIVE
