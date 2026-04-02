@@ -1,3 +1,4 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -6,9 +7,11 @@ MARKET_PAYLOAD = {"market_id": "mkt-001", "title": "Test Market", "timeframe": "
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path):
+    os.environ["MARKET_STORE_PATH"] = str(tmp_path / "test_markets.db")
     with TestClient(app) as c:
         yield c
+    os.environ.pop("MARKET_STORE_PATH", None)
 
 
 # ── POST /api/v1/markets ──────────────────────────────────────────────────────
@@ -131,3 +134,19 @@ def test_create_market_missing_required_field_returns_422(client):
 def test_create_market_empty_body_returns_422(client):
     response = client.post("/api/v1/markets", json={})
     assert response.status_code == 422
+
+
+# ── persistence integration ───────────────────────────────────────────────────
+
+def test_market_persists_across_restart(tmp_path):
+    store_path = str(tmp_path / "markets.db")
+    os.environ["MARKET_STORE_PATH"] = store_path
+    try:
+        with TestClient(app) as c:
+            c.post("/api/v1/markets", json=MARKET_PAYLOAD)
+        with TestClient(app) as c:
+            response = c.get("/api/v1/markets/mkt-001")
+            assert response.status_code == 200
+            assert response.json()["market_id"] == "mkt-001"
+    finally:
+        os.environ.pop("MARKET_STORE_PATH", None)
