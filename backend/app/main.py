@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.api.discovery import router as discovery_router
 from app.api.health import router as health_router
 from app.api.markets import router as markets_router
+from app.api.readiness import router as readiness_router
 from app.core.config import DISCOVERY_SCHEDULER_ENABLED, DISCOVERY_SCHEDULER_INTERVAL
 from app.core.logger import get_logger
 from app.core.run_guard import DiscoveryRunGuard
@@ -44,5 +45,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="POLYPRO", version="0.3.1", lifespan=lifespan)
 app.include_router(health_router)
+app.include_router(readiness_router)
 app.include_router(markets_router)
 app.include_router(discovery_router)
