@@ -5,6 +5,7 @@ const nav = [
   { to: '/', label: 'Başlatıcı', end: true },
   { to: '/user', label: 'Kullanıcı' },
   { to: '/admin', label: 'Yönetici' },
+  { to: '/settings', label: 'Ayarlar' },
 ]
 
 export default function Layout() {

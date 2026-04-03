@@ -3,6 +3,7 @@ import Layout from '../components/Layout'
 import Launcher from '../routes/Launcher'
 import UserPanel from '../routes/UserPanel'
 import AdminPanel from '../routes/AdminPanel'
+import Settings from '../routes/Settings'
 
 export default function Router() {
   return (
@@ -12,6 +13,7 @@ export default function Router() {
           <Route path="/" element={<Launcher />} />
           <Route path="/user" element={<UserPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
