@@ -35,7 +35,7 @@ from app.domain.auth.user import User
 
 
 def get_current_user(request: Request) -> User:
-    """Resolve user from X-Session-Token header. Raises 401 if invalid."""
+    """Resolve user from X-Session-Token header. Raises 401 if invalid or expired."""
     token = request.headers.get("X-Session-Token")
     if not token:
         raise HTTPException(status_code=401, detail="Session token required")
@@ -45,6 +45,9 @@ def get_current_user(request: Request) -> User:
     user = auth_store.get_user_by_session_token(token)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
+    from app.domain.auth.auth_service import is_session_valid
+    if not is_session_valid(user):
+        raise HTTPException(status_code=401, detail="Session expired")
     return user
 
 

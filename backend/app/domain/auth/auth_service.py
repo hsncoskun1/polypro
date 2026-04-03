@@ -1,26 +1,34 @@
-"""Auth service — login, logout, password reset — v1.0.5."""
+"""Auth service — v1.0.6 (bcrypt hashing, session TTL, reset token expiry)."""
 from __future__ import annotations
-import hashlib
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+import bcrypt
 
 from app.domain.auth.user import User
 from app.domain.auth.user_role import UserRole
 
+# Session TTL: 24 hours by default
+SESSION_TTL_HOURS: int = 24
 
-def _hash_password(password: str) -> str:
-    """SHA-256 password hash. Production should use bcrypt."""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return _hash_password(plain) == hashed
+# Reset token TTL: 1 hour
+RESET_TOKEN_TTL_MINUTES: int = 60
 
 
 def hash_password(plain: str) -> str:
-    return _hash_password(plain)
+    """Hash password with bcrypt."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(plain.encode(), salt).decode()
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Verify bcrypt password hash."""
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
 
 
 def generate_session_token() -> str:
@@ -40,32 +48,76 @@ def create_user(email: str, password: str, role: UserRole = UserRole.user) -> Us
     )
 
 
-def login(user: User, password: str) -> Optional[str]:
-    """Verify password and return session token on success, None on failure."""
+def login(user: User, password: str, ttl_hours: int = SESSION_TTL_HOURS) -> Optional[str]:
+    """Verify password and return session token on success, None on failure.
+
+    Creates session with expiry = now + ttl_hours.
+    """
     if not user.is_active:
         return None
     if not verify_password(password, user.password_hash):
         return None
+    now = datetime.now(timezone.utc)
     token = generate_session_token()
     user.session_token = token
-    user.last_login_at = datetime.now(timezone.utc)
+    user.session_created_at = now
+    user.session_expires_at = now + timedelta(hours=ttl_hours)
+    user.last_login_at = now
     return token
 
 
 def logout(user: User) -> None:
     user.session_token = None
+    user.session_created_at = None
+    user.session_expires_at = None
 
 
-def request_password_reset(user: User) -> str:
+def is_session_valid(user: User) -> bool:
+    """Return True if session token exists and has not expired."""
+    if user.session_token is None:
+        return False
+    if user.session_expires_at is None:
+        return False
+    now = datetime.now(timezone.utc)
+    expires = user.session_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    return now < expires
+
+
+def request_password_reset(
+    user: User,
+    ttl_minutes: int = RESET_TOKEN_TTL_MINUTES,
+) -> str:
+    """Generate a time-limited, single-use reset token."""
+    now = datetime.now(timezone.utc)
     token = generate_reset_token()
     user.password_reset_token = token
+    user.password_reset_requested_at = now
+    user.password_reset_expires_at = now + timedelta(minutes=ttl_minutes)
     return token
 
 
 def reset_password(user: User, reset_token: str, new_password: str) -> bool:
+    """Verify reset token (must match, not expired, single-use). Returns True on success."""
+    if user.password_reset_token is None:
+        return False
     if user.password_reset_token != reset_token:
         return False
+    if user.password_reset_expires_at is None:
+        return False
+    now = datetime.now(timezone.utc)
+    expires = user.password_reset_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if now > expires:
+        return False
+    # Success: update password and invalidate token (single-use)
     user.password_hash = hash_password(new_password)
     user.password_reset_token = None
+    user.password_reset_requested_at = None
+    user.password_reset_expires_at = None
     user.session_token = None
+    user.session_created_at = None
+    user.session_expires_at = None
     return True

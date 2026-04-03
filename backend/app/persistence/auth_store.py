@@ -1,4 +1,4 @@
-"""SQLite-backed auth store for users and entitlements — v1.0.5."""
+"""SQLite-backed auth store — v1.0.6 (session TTL, reset token expiry columns)."""
 from __future__ import annotations
 import json
 import sqlite3
@@ -40,11 +40,26 @@ class AuthStore:
                     password_hash TEXT NOT NULL,
                     role TEXT NOT NULL DEFAULT 'user',
                     session_token TEXT,
+                    session_created_at TEXT,
+                    session_expires_at TEXT,
                     last_login_at TEXT,
                     password_reset_token TEXT,
+                    password_reset_requested_at TEXT,
+                    password_reset_expires_at TEXT,
                     is_active INTEGER NOT NULL DEFAULT 1
                 )
             """)
+            # Migration: add new columns if they don't exist (for existing DBs)
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+            for col, definition in [
+                ("session_created_at", "TEXT"),
+                ("session_expires_at", "TEXT"),
+                ("password_reset_requested_at", "TEXT"),
+                ("password_reset_expires_at", "TEXT"),
+            ]:
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
+
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS entitlements (
                     user_id TEXT PRIMARY KEY,
@@ -65,17 +80,23 @@ class AuthStore:
         with self._conn() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO users
-                (user_id, email, password_hash, role, session_token, last_login_at,
-                 password_reset_token, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, email, password_hash, role, session_token,
+                 session_created_at, session_expires_at, last_login_at,
+                 password_reset_token, password_reset_requested_at,
+                 password_reset_expires_at, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user.user_id,
                 user.email,
                 user.password_hash,
                 user.role.value,
                 user.session_token,
+                user.session_created_at.isoformat() if user.session_created_at else None,
+                user.session_expires_at.isoformat() if user.session_expires_at else None,
                 user.last_login_at.isoformat() if user.last_login_at else None,
                 user.password_reset_token,
+                user.password_reset_requested_at.isoformat() if user.password_reset_requested_at else None,
+                user.password_reset_expires_at.isoformat() if user.password_reset_expires_at else None,
                 1 if user.is_active else 0,
             ))
 
@@ -105,18 +126,28 @@ class AuthStore:
             rows = conn.execute("SELECT * FROM users").fetchall()
         return [self._row_to_user(r) for r in rows]
 
+    def _parse_dt(self, val) -> Optional[datetime]:
+        if not val:
+            return None
+        dt = datetime.fromisoformat(val)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
     def _row_to_user(self, row: sqlite3.Row) -> User:
-        last_login = None
-        if row["last_login_at"]:
-            last_login = datetime.fromisoformat(row["last_login_at"])
+        keys = row.keys()
         return User(
             user_id=row["user_id"],
             email=row["email"],
             password_hash=row["password_hash"],
             role=UserRole(row["role"]),
             session_token=row["session_token"],
-            last_login_at=last_login,
+            session_created_at=self._parse_dt(row["session_created_at"] if "session_created_at" in keys else None),
+            session_expires_at=self._parse_dt(row["session_expires_at"] if "session_expires_at" in keys else None),
+            last_login_at=self._parse_dt(row["last_login_at"]),
             password_reset_token=row["password_reset_token"],
+            password_reset_requested_at=self._parse_dt(row["password_reset_requested_at"] if "password_reset_requested_at" in keys else None),
+            password_reset_expires_at=self._parse_dt(row["password_reset_expires_at"] if "password_reset_expires_at" in keys else None),
             is_active=bool(row["is_active"]),
         )
 
@@ -150,13 +181,10 @@ class AuthStore:
         return self._row_to_entitlement(row) if row else None
 
     def _row_to_entitlement(self, row: sqlite3.Row) -> Entitlement:
-        expires = None
-        if row["expires_at"]:
-            expires = datetime.fromisoformat(row["expires_at"])
         return Entitlement(
             user_id=row["user_id"],
             license_status=LicenseStatus(row["license_status"]),
-            expires_at=expires,
+            expires_at=self._parse_dt(row["expires_at"]),
             trading_enabled=bool(row["trading_enabled"]),
             allowed_features=json.loads(row["allowed_features"]),
             visible_panels=json.loads(row["visible_panels"]),
