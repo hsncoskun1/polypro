@@ -84,3 +84,4 @@
 | v0.8.9 | Merged to main | [v0.8.9-admin-reporting-operational-control-ui-pack.md](releases/v0.8.9-admin-reporting-operational-control-ui-pack.md) |
 | v0.9.0 | Merged to main | [v0.9.0-settings-live-configuration-ui-pack.md](releases/v0.9.0-settings-live-configuration-ui-pack.md) |
 | v0.9.1 | Merged to main | [v0.9.1-frontend-final-integration-ux-hardening-pack.md](releases/v0.9.1-frontend-final-integration-ux-hardening-pack.md) |
+| v0.9.2 | Merged to main | [v0.9.2-frontend-completion-audit-gap-closure-pack.md](releases/v0.9.2-frontend-completion-audit-gap-closure-pack.md) |
