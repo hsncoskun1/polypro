@@ -79,4 +79,4 @@
 | v0.8.4 | Merged to main | [v0.8.4-backend-release-readiness-live-test-gate-pack.md](releases/v0.8.4-backend-release-readiness-live-test-gate-pack.md) |
 | v0.8.5 | Merged to main | [v0.8.5-frontend-launcher-surface-wiring-final-app-integration-pack.md](releases/v0.8.5-frontend-launcher-surface-wiring-final-app-integration-pack.md) |
 | v0.8.6 | Merged to main | [v0.8.6-final-completion-audit-gap-closure-pack.md](releases/v0.8.6-final-completion-audit-gap-closure-pack.md) |
-| v0.8.7 | In progress | [v0.8.7-launcher-readiness-release-gate-ui-pack.md](releases/v0.8.7-launcher-readiness-release-gate-ui-pack.md) |
+| v0.8.7 | Merged to main | [v0.8.7-launcher-readiness-release-gate-ui-pack.md](releases/v0.8.7-launcher-readiness-release-gate-ui-pack.md) |
