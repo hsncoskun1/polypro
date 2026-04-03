@@ -12,3 +12,9 @@ if _raw_interval < 1:
         f"DISCOVERY_SCHEDULER_INTERVAL must be >= 1, got {_raw_interval}"
     )
 DISCOVERY_SCHEDULER_INTERVAL: int = _raw_interval
+
+# Launcher authority gate
+# LAUNCHER_GRANT_TOKEN: set by launcher subprocess env — non-empty means launched
+# REQUIRE_LAUNCHER_GRANT: if "true", operational routes require launcher grant
+LAUNCHER_GRANT_TOKEN: str = os.getenv("LAUNCHER_GRANT_TOKEN", "")
+REQUIRE_LAUNCHER_GRANT: bool = os.getenv("REQUIRE_LAUNCHER_GRANT", "false").lower() == "true"

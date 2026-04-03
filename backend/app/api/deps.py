@@ -51,6 +51,22 @@ def get_current_user(request: Request) -> User:
     return user
 
 
+def require_launcher_grant() -> None:
+    """Block operational access if launcher grant is required but not present.
+
+    Raises HTTP 503 when REQUIRE_LAUNCHER_GRANT=true and LAUNCHER_GRANT_TOKEN is empty.
+    This enforces that operational paths are only reachable via the launcher.
+    Auth, health, and launcher status endpoints are not gated.
+    """
+    from app.core.config import LAUNCHER_GRANT_TOKEN, REQUIRE_LAUNCHER_GRANT
+    if REQUIRE_LAUNCHER_GRANT and not LAUNCHER_GRANT_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="Application must be started via the launcher. "
+                   "Direct backend access is not allowed in this configuration.",
+        )
+
+
 def require_trading_enabled(request: Request) -> None:
     """Block trading actions if user license is not active. Raises 403 if trading disabled."""
     token = request.headers.get("X-Session-Token")

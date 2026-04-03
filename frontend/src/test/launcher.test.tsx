@@ -1,4 +1,4 @@
-/** launcher.test.tsx — v0.8.7 Launcher + Readiness UI component tests */
+/** launcher.test.tsx — v1.1.0 Launcher + Readiness + Launcher Grant Gate tests */
 
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -16,8 +16,14 @@ vi.mock('../hooks/useReadiness', () => ({
   useReadiness: vi.fn(),
 }))
 
+vi.mock('../hooks/useLauncherStatus', () => ({
+  useLauncherStatus: vi.fn(),
+}))
+
 import { useReadiness } from '../hooks/useReadiness'
+import { useLauncherStatus } from '../hooks/useLauncherStatus'
 const mockUseReadiness = vi.mocked(useReadiness)
+const mockUseLauncherStatus = vi.mocked(useLauncherStatus)
 
 // ── ReadinessCard ────────────────────────────────────────────────────────────
 
@@ -164,6 +170,11 @@ function renderLauncher() {
 describe('Launcher', () => {
   afterEach(() => vi.clearAllMocks())
 
+  beforeEach(() => {
+    // Default: grant not required, not launched
+    mockUseLauncherStatus.mockReturnValue({ status: 'ready', data: { launched: false, grant_required: false } })
+  })
+
   test('shows loading skeleton when status=loading', () => {
     mockUseReadiness.mockReturnValue({ state: null, status: 'loading', refresh: vi.fn() })
     const { container } = renderLauncher()
@@ -236,5 +247,54 @@ describe('Launcher', () => {
     // The row for "Güncelleme Gerekli" should show Hazır (inversion logic)
     const cards = screen.getAllByText('Hazır')
     expect(cards.length).toBeGreaterThan(0)
+  })
+})
+
+// ── Launcher grant gate tests ─────────────────────────────────────────────────
+
+describe('Launcher grant gate', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  test('does not show grant gate when grant_required=false', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'ready', data: { launched: false, grant_required: false } })
+    renderLauncher()
+    expect(screen.queryByTestId('launcher-grant-gate')).not.toBeInTheDocument()
+  })
+
+  test('does not show grant gate when launched=true and grant_required=true', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'ready', data: { launched: true, grant_required: true } })
+    renderLauncher()
+    expect(screen.queryByTestId('launcher-grant-gate')).not.toBeInTheDocument()
+  })
+
+  test('shows grant gate when grant_required=true and launched=false', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'ready', data: { launched: false, grant_required: true } })
+    renderLauncher()
+    expect(screen.getByTestId('launcher-grant-gate')).toBeInTheDocument()
+    expect(screen.getByText('Başlatıcı Yetkisi Gerekli')).toBeInTheDocument()
+  })
+
+  test('shows correct message in grant gate', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'ready', data: { launched: false, grant_required: true } })
+    renderLauncher()
+    expect(screen.getByText(/başlatıcı üzerinden başlatın/i)).toBeInTheDocument()
+  })
+
+  test('does not show grant gate when launcher status is loading', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'loading', data: null })
+    renderLauncher()
+    expect(screen.queryByTestId('launcher-grant-gate')).not.toBeInTheDocument()
+  })
+
+  test('does not show grant gate when launcher status is error', () => {
+    mockUseReadiness.mockReturnValue({ state: READY_STATE, status: 'ready', refresh: vi.fn() })
+    mockUseLauncherStatus.mockReturnValue({ status: 'error', data: null })
+    renderLauncher()
+    expect(screen.queryByTestId('launcher-grant-gate')).not.toBeInTheDocument()
   })
 })

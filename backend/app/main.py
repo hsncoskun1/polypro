@@ -12,6 +12,9 @@ from app.api.settings import router as settings_router
 from app.api.auth import router as auth_router
 from app.api.admin_users import router as admin_users_router
 from app.api.user_entitlement import router as user_entitlement_router
+from app.api.launcher import router as launcher_router
+from app.api.deps import require_launcher_grant
+from fastapi import Depends
 from app.core.config import DISCOVERY_SCHEDULER_ENABLED, DISCOVERY_SCHEDULER_INTERVAL
 from app.core.logger import get_logger
 from app.core.run_guard import DiscoveryRunGuard
@@ -63,11 +66,12 @@ app.add_middleware(
 )
 app.include_router(health_router)
 app.include_router(readiness_router)
-app.include_router(control_plane_router)
-app.include_router(admin_control_plane_router)
+app.include_router(launcher_router)
+app.include_router(auth_router)
 app.include_router(settings_router)
 app.include_router(markets_router)
 app.include_router(discovery_router)
-app.include_router(auth_router)
-app.include_router(admin_users_router)
-app.include_router(user_entitlement_router)
+app.include_router(control_plane_router, dependencies=[Depends(require_launcher_grant)])
+app.include_router(admin_control_plane_router, dependencies=[Depends(require_launcher_grant)])
+app.include_router(admin_users_router, dependencies=[Depends(require_launcher_grant)])
+app.include_router(user_entitlement_router, dependencies=[Depends(require_launcher_grant)])

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useReadiness } from '../hooks/useReadiness'
+import { useLauncherStatus } from '../hooks/useLauncherStatus'
 import ReadinessCard from '../components/ReadinessCard'
 import BlockedReasonList from '../components/BlockedReasonList'
 import ReleaseGatePanel from '../components/ReleaseGatePanel'
@@ -16,10 +17,16 @@ const READINESS_ROWS: Array<{ key: keyof import('../types/readiness').ReadinessS
 export default function Launcher() {
   const navigate = useNavigate()
   const { state, status, refresh } = useReadiness()
+  const launcherStatus = useLauncherStatus()
 
   const isLoading  = status === 'loading'
   const isError    = status === 'error'
   const isBlocked  = state?.launcher_blocked ?? true
+
+  // Launcher grant gate: if grant is required but backend was not started via launcher
+  const grantRequired = launcherStatus.status === 'ready' && launcherStatus.data.grant_required
+  const launched = launcherStatus.status === 'ready' && launcherStatus.data.launched
+  const grantBlocked = grantRequired && !launched
 
   function handleContinue() {
     if (state?.continue_destination) {
@@ -36,6 +43,19 @@ export default function Launcher() {
           Sistem hazırlık durumu ve giriş noktası.
         </p>
       </div>
+
+      {/* Launcher grant gate */}
+      {grantBlocked && (
+        <div
+          data-testid="launcher-grant-gate"
+          className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3"
+        >
+          <p className="text-sm font-semibold text-amber-300">Başlatıcı Yetkisi Gerekli</p>
+          <p className="text-xs text-amber-400 mt-1">
+            Bu uygulama yalnızca başlatıcı aracılığıyla çalıştırılabilir. Lütfen uygulamayı doğrudan değil, başlatıcı üzerinden başlatın.
+          </p>
+        </div>
+      )}
 
       {/* Backend unreachable */}
       {isError && (

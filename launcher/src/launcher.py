@@ -1,7 +1,10 @@
-"""POLYPRO Launcher — v0.1.5
+"""POLYPRO Launcher — v1.1.0
 Starts backend and frontend, waits for backend health, opens browser.
 Hardened: pre-flight checks, clear error messages, clean shutdown.
+v1.1.0: Generates LAUNCHER_GRANT_TOKEN and passes it to backend subprocess env.
 """
+import os
+import secrets
 import subprocess
 import sys
 import time
@@ -49,15 +52,17 @@ def check_preflight() -> list[str]:
 
 # ── Process management ───────────────────────────────────────────────────────
 
-def start_backend() -> subprocess.Popen:
+def start_backend(grant_token: str) -> subprocess.Popen:
     venv_python = BACKEND_DIR / ".venv" / "Scripts" / "python.exe"
     cmd = [str(venv_python), "-m", "uvicorn", "app.main:app",
            "--host", "127.0.0.1", "--port", "8000"]
+    env = {**os.environ, "LAUNCHER_GRANT_TOKEN": grant_token}
     return subprocess.Popen(
         cmd,
         cwd=str(BACKEND_DIR),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        env=env,
     )
 
 
@@ -123,9 +128,10 @@ def run() -> int:
             print(f"  ✗ {err}", file=sys.stderr)
         return 1
 
-    # 2. Start backend
-    print("[launcher] Starting backend...")
-    backend = start_backend()
+    # 2. Generate launcher grant token and start backend
+    grant_token = secrets.token_hex(32)
+    print("[launcher] Starting backend with launcher grant token...")
+    backend = start_backend(grant_token)
 
     # Brief pause — let uvicorn fail fast if port is already in use
     time.sleep(0.5)
