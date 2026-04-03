@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import HealthBadge from './HealthBadge'
+import AppFooter from './AppFooter'
 
 const nav = [
   { to: '/', label: 'Başlatıcı', end: true },
@@ -36,6 +37,7 @@ export default function Layout() {
       <main className="flex-1 p-6">
         <Outlet />
       </main>
+      <AppFooter />
     </div>
   )
 }
