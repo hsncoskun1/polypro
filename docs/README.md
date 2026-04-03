@@ -93,3 +93,4 @@
 | v1.0.5 | Merged to main | [v1.0.5-auth-license-admin-user-separation-pack.md](releases/v1.0.5-auth-license-admin-user-separation-pack.md) |
 | v1.0.6 | Merged to main | [v1.0.6-auth-hardening-pack.md](releases/v1.0.6-auth-hardening-pack.md) |
 | v1.0.7 | Merged to main | [v1.0.7-admin-control-visibility-ui-completion-pack.md](releases/v1.0.7-admin-control-visibility-ui-completion-pack.md) |
+| v1.0.8 | Merged to main | [v1.0.8-secret-hygiene-and-leak-prevention-pack.md](releases/v1.0.8-secret-hygiene-and-leak-prevention-pack.md) |

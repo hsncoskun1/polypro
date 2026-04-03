@@ -55,7 +55,9 @@ def forgot_password(body: ForgotPasswordRequest, request: Request):
         return ForgotPasswordResponse(reset_token="")
     token = auth_service.request_password_reset(user)
     store.save_user(user)
-    # In production: send email. For foundation: return token directly.
+    # SECURITY NOTE: Foundation mode only — token returned in response body.
+    # Production MUST replace this with email delivery and return no token.
+    # Returning reset tokens in HTTP responses is a security risk in production.
     return ForgotPasswordResponse(reset_token=token)
 
 
