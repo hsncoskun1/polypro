@@ -2,9 +2,9 @@ import { NavLink, Outlet } from 'react-router-dom'
 import HealthBadge from './HealthBadge'
 
 const nav = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/user', label: 'User' },
-  { to: '/admin', label: 'Admin' },
+  { to: '/', label: 'Başlatıcı', end: true },
+  { to: '/user', label: 'Kullanıcı' },
+  { to: '/admin', label: 'Yönetici' },
 ]
 
 export default function Layout() {
