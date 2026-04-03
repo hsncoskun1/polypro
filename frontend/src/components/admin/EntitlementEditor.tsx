@@ -1,11 +1,11 @@
-// Entitlement editor for admin — v1.0.7
+// Entitlement editor for admin — v1.0.9
 import React, { useState, useEffect } from 'react';
 import type { EntitlementResponse, AdminEntitlementUpdateRequest } from '../../types/auth';
 
 interface Props {
   userId: string;
   entitlement: EntitlementResponse | null;
-  onSave: (userId: string, data: AdminEntitlementUpdateRequest) => Promise<void>;
+  onSave: (userId: string, data: AdminEntitlementUpdateRequest) => Promise<{ ok: boolean; error?: string }>;
   onClose: () => void;
 }
 
@@ -16,24 +16,35 @@ export function EntitlementEditor({ userId, entitlement, onSave, onClose }: Prop
   const [visiblePanels, setVisiblePanels] = useState('');
   const [visibleRules, setVisibleRules] = useState('');
   const [editableRules, setEditableRules] = useState('');
+  const [blockedReasons, setBlockedReasons] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const loadFromEntitlement = (ent: EntitlementResponse) => {
+    setLicenseStatus(ent.license_status);
+    setExpiresAt(ent.expires_at ? ent.expires_at.slice(0, 10) : '');
+    setTradingEnabled(ent.trading_enabled);
+    setVisiblePanels(ent.visible_panels.join(', '));
+    setVisibleRules(ent.visible_rules.join(', '));
+    setEditableRules(ent.editable_rules.join(', '));
+    setBlockedReasons(ent.blocked_reason_messages.join('\n'));
+  };
 
   useEffect(() => {
     if (entitlement) {
-      setLicenseStatus(entitlement.license_status);
-      setExpiresAt(entitlement.expires_at ? entitlement.expires_at.slice(0, 10) : '');
-      setTradingEnabled(entitlement.trading_enabled);
-      setVisiblePanels(entitlement.visible_panels.join(', '));
-      setVisibleRules(entitlement.visible_rules.join(', '));
-      setEditableRules(entitlement.editable_rules.join(', '));
+      loadFromEntitlement(entitlement);
     }
   }, [entitlement]);
 
   const parseList = (val: string) =>
     val.split(',').map(s => s.trim()).filter(Boolean);
 
+  const parseLines = (val: string) =>
+    val.split('\n').map(s => s.trim()).filter(Boolean);
+
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     const data: AdminEntitlementUpdateRequest = {
       license_status: licenseStatus,
       expires_at: expiresAt ? `${expiresAt}T00:00:00` : null,
@@ -42,16 +53,35 @@ export function EntitlementEditor({ userId, entitlement, onSave, onClose }: Prop
       visible_panels: parseList(visiblePanels),
       visible_rules: parseList(visibleRules),
       editable_rules: parseList(editableRules),
-      blocked_reason_messages: [],
+      blocked_reason_messages: parseLines(blockedReasons),
     };
-    await onSave(userId, data);
+    const result = await onSave(userId, data);
     setSaving(false);
+    if (result.ok) {
+      onClose();
+    } else {
+      setSaveError(result.error ?? 'Save failed. Please try again.');
+    }
+  };
+
+  const handleCancel = () => {
+    if (entitlement) {
+      loadFromEntitlement(entitlement);
+    }
+    setSaveError(null);
     onClose();
   };
 
   return (
     <div className="bg-gray-800 border border-gray-600 rounded p-4 mt-4">
       <h3 className="text-sm font-semibold text-gray-200 mb-3">Edit Entitlement</h3>
+
+      {saveError && (
+        <div className="mb-3 p-2 bg-red-900 border border-red-700 rounded text-red-300 text-xs" data-testid="save-error">
+          {saveError}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-3">
         <div>
           <label className="text-xs text-gray-400">License Status</label>
@@ -90,7 +120,7 @@ export function EntitlementEditor({ userId, entitlement, onSave, onClose }: Prop
             type="text"
             value={visiblePanels}
             onChange={e => setVisiblePanels(e.target.value)}
-            placeholder="e.g. dashboard, positions, pnl"
+            placeholder="e.g. positions, pnl, balance, claims, live_gate"
             className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 mt-1"
           />
         </div>
@@ -114,6 +144,16 @@ export function EntitlementEditor({ userId, entitlement, onSave, onClose }: Prop
             className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 mt-1"
           />
         </div>
+        <div>
+          <label className="text-xs text-gray-400">Blocked Reason Messages (one per line)</label>
+          <textarea
+            value={blockedReasons}
+            onChange={e => setBlockedReasons(e.target.value)}
+            placeholder="e.g. License expired. Contact support."
+            rows={3}
+            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 mt-1 resize-y"
+          />
+        </div>
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleSave}
@@ -123,8 +163,9 @@ export function EntitlementEditor({ userId, entitlement, onSave, onClose }: Prop
             {saving ? 'Saving...' : 'Save'}
           </button>
           <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded"
+            onClick={handleCancel}
+            disabled={saving}
+            className="px-4 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded disabled:opacity-50"
           >
             Cancel
           </button>
