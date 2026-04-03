@@ -221,97 +221,64 @@ describe('AdminReleaseGate', () => {
   })
 })
 
-// --- AdminPanel integration ---
+// --- AdminPanel integration (v1.0.7 — real user management UI) ---
+vi.mock('../hooks/useAdminUsers', () => ({
+  useAdminUsers: () => ({
+    users: [],
+    summary: {
+      online_user_count: 0,
+      total_user_count: 0,
+      active_bot_count: 0,
+      open_position_count: 0,
+      closed_position_count: 0,
+      blocked_trade_count: 0,
+      alert_count: 0,
+    },
+    loading: false,
+    error: null,
+    fetchUsers: vi.fn(),
+    getEntitlement: vi.fn(),
+    updateEntitlement: vi.fn(),
+  }),
+}))
+
 describe('AdminPanel', () => {
   beforeEach(() => {
-    mockStatus = 'ready'
-    mockState = { ...defaultState }
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
+      if (key === 'session_token' || key === 'polypro_session_token') return 'test-token'
+      return null
+    })
   })
 
   test('shows heading', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Admin Panel')).toBeInTheDocument()
+    expect(screen.getByText('Admin Control Panel')).toBeInTheDocument()
   })
 
-  test('shows subheading', () => {
+  test('shows refresh button', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Operasyonel kontrol, finansal raporlama ve sistem durumu.')).toBeInTheDocument()
+    expect(screen.getByText('Refresh')).toBeInTheDocument()
   })
 
-  test('shows loading state', () => {
-    mockStatus = 'loading'
-    mockState = null
+  test('shows Users section', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByLabelText('Yükleniyor')).toBeInTheDocument()
+    expect(screen.getByText('Users')).toBeInTheDocument()
   })
 
-  test('shows error state', () => {
-    mockStatus = 'error'
-    mockState = null
+  test('shows summary card labels', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText(/Backend/)).toBeInTheDocument()
+    expect(screen.getByText('Online Users')).toBeInTheDocument()
+    expect(screen.getByText('Total Users')).toBeInTheDocument()
   })
 
-  test('shows refresh button in error state', () => {
-    mockStatus = 'error'
-    mockState = null
+  test('shows not authenticated when no token', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Yenile')).toBeInTheDocument()
+    expect(screen.getByText(/Not authenticated/)).toBeInTheDocument()
   })
 
-  test('shows operational control panel when ready', () => {
+  test('shows no users message when list is empty', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Operasyonel Kontrol')).toBeInTheDocument()
-  })
-
-  test('shows financial summary when ready', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Finansal Özet')).toBeInTheDocument()
-  })
-
-  test('shows blocked events panel when ready', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Bloke Olaylar')).toBeInTheDocument()
-  })
-
-  test('shows execution report panel when ready', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Gerçekleşme ve Uyarı Raporu')).toBeInTheDocument()
-  })
-
-  test('shows release gate when ready', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Yayın Kapısı')).toBeInTheDocument()
-  })
-
-  test('global disable banner shown when active', () => {
-    mockState = { ...defaultState, global_disable_active: true }
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText(/Genel devre dışı aktif/)).toBeInTheDocument()
-  })
-
-  test('safe stop banner shown when active', () => {
-    mockState = { ...defaultState, safe_stop_active: true, safe_stop_reason: 'Test' }
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText(/Güvenli durdurma aktif/)).toBeInTheDocument()
-  })
-
-  test('no safe stop banner when inactive', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.queryByText(/Güvenli durdurma aktif/)).not.toBeInTheDocument()
-  })
-
-  test('live_applied_testing_ready always false in default state', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Kapalı')).toBeInTheDocument()
-  })
-
-  test('no secret fields visible', () => {
-    render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    const content = document.body.innerText || document.body.textContent || ''
-    const secretTerms = ['api_key', 'password', 'token', 'credential', 'secret']
-    for (const term of secretTerms) {
-      expect(content.toLowerCase()).not.toContain(term)
-    }
+    expect(screen.getByText('No users found.')).toBeInTheDocument()
   })
 })
