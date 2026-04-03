@@ -1,5 +1,6 @@
-"""Admin user management API routes — v1.0.5."""
+"""Admin user management API routes — v1.1.2 (policy audit trail)."""
 from __future__ import annotations
+import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -10,7 +11,9 @@ from app.api.schemas.auth import (
     AdminSummaryResponse,
     AdminUserSummary,
     EntitlementResponse,
+    PolicyAuditRecordResponse,
 )
+from app.domain.audit.policy_audit_record import PolicyAuditRecord
 from app.domain.entitlement.entitlement import Entitlement
 from app.domain.entitlement.entitlement_service import apply_license_enforcement
 from app.domain.entitlement.license_status import LicenseStatus
@@ -85,7 +88,7 @@ def get_user_entitlement(user_id: str, request: Request):
 
 @router.put("/users/{user_id}/entitlement", response_model=EntitlementResponse)
 def update_user_entitlement(user_id: str, body: AdminEntitlementUpdateRequest, request: Request):
-    _require_admin(request)
+    admin = _require_admin(request)
     store = _get_auth_store(request)
     user = store.get_user_by_id(user_id)
     if user is None:
@@ -97,6 +100,10 @@ def update_user_entitlement(user_id: str, body: AdminEntitlementUpdateRequest, r
             expires = datetime.fromisoformat(body.expires_at)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid expires_at format")
+
+    # Capture before snapshot
+    existing = store.get_entitlement(user_id)
+    snapshot_before = _ent_to_snapshot(existing)
 
     ent = Entitlement(
         user_id=user_id,
@@ -111,7 +118,57 @@ def update_user_entitlement(user_id: str, body: AdminEntitlementUpdateRequest, r
     )
     ent = apply_license_enforcement(ent)
     store.save_entitlement(ent)
+
+    # Write audit record
+    snapshot_after = _ent_to_snapshot(ent)
+    audit_record = PolicyAuditRecord(
+        audit_id=str(uuid.uuid4()),
+        actor_id=admin.user_id,
+        target_user_id=user_id,
+        action="update_entitlement",
+        snapshot_before=snapshot_before,
+        snapshot_after=snapshot_after,
+        changed_at=datetime.now(timezone.utc),
+    )
+    store.save_policy_audit_record(audit_record)
+
     return _ent_to_response(ent)
+
+
+@router.get("/users/{user_id}/audit", response_model=List[PolicyAuditRecordResponse])
+def get_user_audit_log(user_id: str, request: Request):
+    """Return policy audit log for a user — admin only."""
+    _require_admin(request)
+    store = _get_auth_store(request)
+    records = store.get_policy_audit_records(user_id)
+    return [
+        PolicyAuditRecordResponse(
+            audit_id=r.audit_id,
+            actor_id=r.actor_id,
+            target_user_id=r.target_user_id,
+            action=r.action,
+            snapshot_before=r.snapshot_before,
+            snapshot_after=r.snapshot_after,
+            changed_at=r.changed_at.isoformat(),
+            changed_fields=r.changed_fields(),
+        )
+        for r in records
+    ]
+
+
+def _ent_to_snapshot(ent: Optional[Entitlement]) -> dict:
+    if ent is None:
+        return {}
+    return {
+        "license_status": ent.license_status.value,
+        "expires_at": ent.expires_at.isoformat() if ent.expires_at else None,
+        "trading_enabled": ent.trading_enabled,
+        "allowed_features": ent.allowed_features,
+        "visible_panels": ent.visible_panels,
+        "visible_rules": ent.visible_rules,
+        "editable_rules": ent.editable_rules,
+        "blocked_reason_messages": ent.blocked_reason_messages,
+    }
 
 
 def _ent_to_response(ent: Entitlement) -> EntitlementResponse:

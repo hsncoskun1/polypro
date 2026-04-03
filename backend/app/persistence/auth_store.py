@@ -1,4 +1,4 @@
-"""SQLite-backed auth store — v1.0.6 (session TTL, reset token expiry columns)."""
+"""SQLite-backed auth store — v1.1.2 (policy audit trail)."""
 from __future__ import annotations
 import json
 import sqlite3
@@ -9,6 +9,7 @@ from typing import List, Optional
 
 from app.domain.auth.user import User
 from app.domain.auth.user_role import UserRole
+from app.domain.audit.policy_audit_record import PolicyAuditRecord
 from app.domain.entitlement.entitlement import Entitlement
 from app.domain.entitlement.license_status import LicenseStatus
 
@@ -71,6 +72,17 @@ class AuthStore:
                     visible_rules TEXT NOT NULL DEFAULT '[]',
                     editable_rules TEXT NOT NULL DEFAULT '[]',
                     blocked_reason_messages TEXT NOT NULL DEFAULT '[]'
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS policy_audit_log (
+                    audit_id TEXT PRIMARY KEY,
+                    actor_id TEXT NOT NULL,
+                    target_user_id TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    snapshot_before TEXT NOT NULL DEFAULT '{}',
+                    snapshot_after TEXT NOT NULL DEFAULT '{}',
+                    changed_at TEXT NOT NULL
                 )
             """)
 
@@ -199,3 +211,40 @@ class AuthStore:
                 "SELECT COUNT(*) as cnt FROM users WHERE session_token IS NOT NULL AND is_active = 1"
             ).fetchone()
         return row["cnt"] if row else 0
+
+    # --- Policy Audit Log ---
+
+    def save_policy_audit_record(self, record: PolicyAuditRecord) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO policy_audit_log
+                (audit_id, actor_id, target_user_id, action, snapshot_before, snapshot_after, changed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record.audit_id,
+                record.actor_id,
+                record.target_user_id,
+                record.action,
+                json.dumps(record.snapshot_before),
+                json.dumps(record.snapshot_after),
+                record.changed_at.isoformat(),
+            ))
+
+    def get_policy_audit_records(self, target_user_id: str) -> List[PolicyAuditRecord]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM policy_audit_log WHERE target_user_id = ? ORDER BY changed_at DESC",
+                (target_user_id,)
+            ).fetchall()
+        return [self._row_to_audit_record(r) for r in rows]
+
+    def _row_to_audit_record(self, row: sqlite3.Row) -> PolicyAuditRecord:
+        return PolicyAuditRecord(
+            audit_id=row["audit_id"],
+            actor_id=row["actor_id"],
+            target_user_id=row["target_user_id"],
+            action=row["action"],
+            snapshot_before=json.loads(row["snapshot_before"]),
+            snapshot_after=json.loads(row["snapshot_after"]),
+            changed_at=self._parse_dt(row["changed_at"]) or datetime.now(timezone.utc),
+        )
