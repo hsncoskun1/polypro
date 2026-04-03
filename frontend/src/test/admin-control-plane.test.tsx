@@ -242,7 +242,7 @@ describe('AdminPanel', () => {
     mockStatus = 'loading'
     mockState = null
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
-    expect(screen.getByText('Yükleniyor...')).toBeInTheDocument()
+    expect(screen.getByLabelText('Yükleniyor')).toBeInTheDocument()
   })
 
   test('shows error state', () => {

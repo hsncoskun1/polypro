@@ -223,7 +223,7 @@ describe('Settings', () => {
     mockStatus = 'loading'
     mockState = null
     render(<MemoryRouter><Settings /></MemoryRouter>)
-    expect(screen.getByText('Yükleniyor...')).toBeInTheDocument()
+    expect(screen.getByLabelText('Yükleniyor')).toBeInTheDocument()
   })
 
   test('shows error state', () => {

@@ -4,6 +4,7 @@ import Home from '../routes/Home'
 import UserPanel from '../routes/UserPanel'
 import AdminPanel from '../routes/AdminPanel'
 import Settings from '../routes/Settings'
+import NotFound from '../routes/NotFound'
 
 describe('Routes render', () => {
   test('Home renders heading', () => {
@@ -24,5 +25,10 @@ describe('Routes render', () => {
   test('Settings renders heading', () => {
     render(<MemoryRouter><Settings /></MemoryRouter>)
     expect(screen.getByText('Ayarlar')).toBeInTheDocument()
+  })
+
+  test('NotFound renders heading', () => {
+    render(<MemoryRouter><NotFound /></MemoryRouter>)
+    expect(screen.getByText('Sayfa Bulunamadı')).toBeInTheDocument()
   })
 })
