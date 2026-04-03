@@ -94,3 +94,4 @@
 | v1.0.6 | Merged to main | [v1.0.6-auth-hardening-pack.md](releases/v1.0.6-auth-hardening-pack.md) |
 | v1.0.7 | Merged to main | [v1.0.7-admin-control-visibility-ui-completion-pack.md](releases/v1.0.7-admin-control-visibility-ui-completion-pack.md) |
 | v1.0.8 | Merged to main | [v1.0.8-secret-hygiene-and-leak-prevention-pack.md](releases/v1.0.8-secret-hygiene-and-leak-prevention-pack.md) |
+| v1.0.9 | Merged to main | [v1.0.9-admin-entitlement-save-user-visibility-pack.md](releases/v1.0.9-admin-entitlement-save-user-visibility-pack.md) |

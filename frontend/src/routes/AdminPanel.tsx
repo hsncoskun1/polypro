@@ -1,4 +1,4 @@
-// Admin Panel — v1.0.7 (real API data)
+// Admin Panel — v1.0.9 (entitlement save flow + error handling)
 import React, { useState, useCallback } from 'react';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AdminUserTable } from '../components/admin/AdminUserTable';
@@ -27,9 +27,16 @@ export default function AdminPanel() {
     setEditorOpen(true);
   }, [getEntitlement]);
 
-  const handleSave = useCallback(async (userId: string, data: AdminEntitlementUpdateRequest) => {
-    await updateEntitlement(userId, data);
+  const handleSave = useCallback(async (
+    userId: string,
+    data: AdminEntitlementUpdateRequest
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const result = await updateEntitlement(userId, data);
+    if (result === null) {
+      return { ok: false, error: 'Server error: could not save entitlement.' };
+    }
     await fetchUsers();
+    return { ok: true };
   }, [updateEntitlement, fetchUsers]);
 
   if (!sessionToken) {
