@@ -12,7 +12,7 @@ describe('Routes render', () => {
 
   test('UserPanel renders heading', () => {
     render(<MemoryRouter><UserPanel /></MemoryRouter>)
-    expect(screen.getByText('User Panel')).toBeInTheDocument()
+    expect(screen.getByText('Kullanıcı Paneli')).toBeInTheDocument()
   })
 
   test('AdminPanel renders heading', () => {
