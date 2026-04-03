@@ -1,4 +1,4 @@
-"""Tests for PolymarketHttpClient — v1.0.0 / v1.0.1."""
+"""Tests for PolymarketHttpClient — v1.0.0 / v1.0.1 / v1.0.2."""
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -439,3 +439,297 @@ class TestAuthSigningIntegration:
         no_wallet = LiveCredentials(api_key="key", api_secret="secret")
         result = client.execute_submit(_submit_payload(), no_wallet)
         assert result.terminal_failure is True
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — success path (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceSuccess:
+    def test_200_returns_sync_success_true(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "250.50", "allowance": "1000000"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is True
+        assert result.terminal_failure is False
+
+    def test_200_total_balance_correct(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "250.50"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.total_balance == 250.50
+
+    def test_200_available_balance_correct(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "100.00"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.available_balance == 100.00
+
+    def test_200_current_balance_correct(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "75.25"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.current_balance == 75.25
+
+    def test_200_currency_is_usdc(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "50.00"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.currency == "USDC"
+
+    def test_200_synced_at_populated(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "50.00"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.synced_at != ""
+        assert result.synced_at.isdigit()
+
+    def test_200_raw_balance_payload_contains_balance_key(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "50.00", "allowance": "1000000"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert "balance" in result.raw_balance_payload
+
+    def test_200_normalized_balance_result_populated(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "50.00"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.normalized_balance_result != ""
+        assert "50.0" in result.normalized_balance_result
+
+    def test_200_balance_zero_is_valid_not_fake(self):
+        """Balance 0.0 from exchange is a real zero, not a fake default."""
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "0.0"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is True
+        assert result.total_balance == 0.0
+
+    def test_balance_request_uses_correct_endpoint(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "10.0"})
+        with patch("httpx.get", return_value=mock_resp) as mock_get:
+            client.execute_get_balance(_creds())
+        call_url = mock_get.call_args[0][0]
+        assert "polymarket.com" in call_url
+        assert "balance-allowance" in call_url
+
+    def test_balance_request_uses_get_method(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "10.0"})
+        with patch("httpx.get", return_value=mock_resp) as mock_get:
+            client.execute_get_balance(_creds())
+        assert mock_get.called
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — malformed response (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceMalformed:
+    def test_200_missing_balance_field_terminal_failure(self):
+        """balance field absent in response → fail-closed."""
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"allowance": "1000000"})  # no balance key
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+        assert "balance_field_missing" in result.reject_reason
+
+    def test_200_malformed_balance_value_terminal_failure(self):
+        """balance field present but not parseable as float → fail-closed."""
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": "not_a_number"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+        assert "balance_field_malformed" in result.reject_reason
+
+    def test_200_null_balance_terminal_failure(self):
+        """balance field is null → fail-closed (not fake 0.0)."""
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"balance": None})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+
+    def test_malformed_never_returns_fake_balance(self):
+        """total_balance is never populated when sync fails."""
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.total_balance == 0.0  # default, not real balance
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — HTTP error mapping (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceHttpErrors:
+    def test_401_auth_error_terminal_failure(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(401)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+        assert "auth_error" in result.reject_reason
+
+    def test_401_does_not_return_balance(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(401)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.total_balance == 0.0
+        assert result.available_balance == 0.0
+
+    def test_429_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(429)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_500_server_error_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(500)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_503_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(503)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_400_terminal_failure(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(400)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.terminal_failure is True
+        assert result.sync_success is False
+
+    def test_unknown_status_fail_closed(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(418)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_balance(_creds())
+        assert result.terminal_failure is True
+        assert result.retryable is False
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — timeout and exceptions (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceTimeoutAndExceptions:
+    def test_timeout_retryable(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=httpx.TimeoutException("timeout")):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_timeout_reject_reason_set(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=httpx.TimeoutException("timeout")):
+            result = client.execute_get_balance(_creds())
+        assert "timeout" in result.reject_reason
+
+    def test_unexpected_exception_terminal(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=RuntimeError("unexpected")):
+            result = client.execute_get_balance(_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+        assert result.retryable is False
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — credentials missing (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceCredentialsMissing:
+    def _failing_signer(self) -> PolymarketRequestSigner:
+        signer = MagicMock(spec=PolymarketRequestSigner)
+        signer.build_auth_headers.side_effect = PolymarketAuthError("credentials_not_configured")
+        return signer
+
+    def test_missing_credentials_terminal_failure(self):
+        client = PolymarketHttpClient(signer=self._failing_signer())
+        result = client.execute_get_balance(_empty_creds())
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+        assert "credentials_not_configured" in result.reject_reason
+
+    def test_missing_credentials_no_fake_balance(self):
+        client = PolymarketHttpClient(signer=self._failing_signer())
+        result = client.execute_get_balance(_empty_creds())
+        assert result.total_balance == 0.0
+        assert result.available_balance == 0.0
+        assert result.current_balance == 0.0
+
+    def test_real_signer_missing_api_key_fails_closed(self):
+        real_signer = PolymarketRequestSigner()
+        client = PolymarketHttpClient(signer=real_signer)
+        no_key_creds = LiveCredentials(wallet_address="0xABC", api_secret="secret")
+        result = client.execute_get_balance(no_key_creds)
+        assert result.sync_success is False
+        assert result.terminal_failure is True
+
+
+# ---------------------------------------------------------------------------
+# Balance fetch — signing integration (v1.0.2)
+# ---------------------------------------------------------------------------
+
+class TestGetBalanceSigningIntegration:
+    def test_signer_called_for_balance_with_get_method(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"balance": "10.0"})
+        with patch("httpx.get", return_value=mock_resp):
+            client.execute_get_balance(_creds())
+        mock_sig.build_auth_headers.assert_called_once()
+        call_args = mock_sig.build_auth_headers.call_args
+        assert call_args[0][1] == "GET"
+
+    def test_signer_called_with_balance_path(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"balance": "10.0"})
+        with patch("httpx.get", return_value=mock_resp):
+            client.execute_get_balance(_creds())
+        call_args = mock_sig.build_auth_headers.call_args
+        assert "balance-allowance" in call_args[0][2]
+
+    def test_signed_headers_forwarded_to_httpx_get(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"balance": "10.0"})
+        with patch("httpx.get", return_value=mock_resp) as mock_get:
+            client.execute_get_balance(_creds())
+        headers = mock_get.call_args.kwargs.get("headers") or mock_get.call_args[1].get("headers")
+        assert headers["POLY_SIGNATURE"] == "test_sig_abc123"
