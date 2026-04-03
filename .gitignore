@@ -6,8 +6,35 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# Environment / secrets — never commit real values
 .env
 .env.*
+!.env.example
+env.txt
+*.secret
+secrets.*
+credentials.*
+
+# Database and runtime artifacts
+*.db
+*.sqlite
+*.sqlite3
+data/
+backend/data/
+launcher/data/
+
+# Log files
+logs/
+*.log
+
+# Cryptographic key files
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
 
 # Node
 node_modules/
@@ -23,9 +50,3 @@ Thumbs.db
 # Local utility scripts — not product code
 create_polybot_doc.py
 test_order.py
-
-# Data and credential files
-env.txt
-*.db
-data/
-backend/data/
