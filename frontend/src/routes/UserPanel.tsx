@@ -1,4 +1,4 @@
-/** UserPanel — User Control Plane UI — v1.0.9 (entitlement enforcement) */
+/** UserPanel — User Control Plane UI — v1.1.1 (rule visibility enforcement) */
 import { useControlPlane } from '../hooks/useControlPlane'
 import { useEntitlement } from '../hooks/useEntitlement'
 import PageShell from '../components/PageShell'
@@ -7,6 +7,7 @@ import PnlPanel from '../components/PnlPanel'
 import BalancePanel from '../components/BalancePanel'
 import ClaimSummaryCard from '../components/ClaimSummaryCard'
 import LiveGateStatus from '../components/LiveGateStatus'
+import RulesPanel from '../components/RulesPanel'
 
 const SESSION_TOKEN_KEY = 'polypro_session_token'
 
@@ -28,6 +29,8 @@ export default function UserPanel() {
   const visiblePanels = entitlement?.visible_panels ?? []
   const tradingEnabled = entitlement?.trading_enabled ?? true
   const blockedReasons = entitlement?.blocked_reason_messages ?? []
+  const visibleRules = entitlement?.visible_rules ?? []
+  const editableRules = entitlement?.editable_rules ?? []
 
   return (
     <PageShell
@@ -114,6 +117,13 @@ export default function UserPanel() {
               liveAppliedTestingReady={state.live_applied_testing_ready}
               liveBlocked={state.live_mode_ui_blocked}
               blockedReasons={state.blocked_reason_messages}
+            />
+          )}
+
+          {isPanelVisible('rules', visiblePanels) && (
+            <RulesPanel
+              visibleRules={visibleRules}
+              editableRules={editableRules}
             />
           )}
         </div>

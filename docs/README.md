@@ -95,3 +95,4 @@
 | v1.0.7 | Merged to main | [v1.0.7-admin-control-visibility-ui-completion-pack.md](releases/v1.0.7-admin-control-visibility-ui-completion-pack.md) |
 | v1.0.8 | Merged to main | [v1.0.8-secret-hygiene-and-leak-prevention-pack.md](releases/v1.0.8-secret-hygiene-and-leak-prevention-pack.md) |
 | v1.0.9 | Merged to main | [v1.0.9-admin-entitlement-save-user-visibility-pack.md](releases/v1.0.9-admin-entitlement-save-user-visibility-pack.md) |
+| v1.1.1 | Branch: feat/v1.1.1-user-rule-edit-visibility-enforcement | [v1.1.1-user-rule-edit-visibility-enforcement-pack.md](releases/v1.1.1-user-rule-edit-visibility-enforcement-pack.md) |
