@@ -1,7 +1,7 @@
-"""Auth API schemas — v1.0.5."""
+"""Auth API schemas — v1.1.2."""
 from __future__ import annotations
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
@@ -76,3 +76,14 @@ class AdminEntitlementUpdateRequest(BaseModel):
     visible_rules: List[str] = []
     editable_rules: List[str] = []
     blocked_reason_messages: List[str] = []
+
+
+class PolicyAuditRecordResponse(BaseModel):
+    audit_id: str
+    actor_id: str
+    target_user_id: str
+    action: str
+    snapshot_before: Dict[str, Any]
+    snapshot_after: Dict[str, Any]
+    changed_at: str
+    changed_fields: List[str]

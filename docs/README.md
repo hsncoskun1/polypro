@@ -96,3 +96,4 @@
 | v1.0.8 | Merged to main | [v1.0.8-secret-hygiene-and-leak-prevention-pack.md](releases/v1.0.8-secret-hygiene-and-leak-prevention-pack.md) |
 | v1.0.9 | Merged to main | [v1.0.9-admin-entitlement-save-user-visibility-pack.md](releases/v1.0.9-admin-entitlement-save-user-visibility-pack.md) |
 | v1.1.1 | Merged to main | [v1.1.1-user-rule-edit-visibility-enforcement-pack.md](releases/v1.1.1-user-rule-edit-visibility-enforcement-pack.md) |
+| v1.1.2 | Merged to main | [v1.1.2-admin-policy-propagation-audit-trail-pack.md](releases/v1.1.2-admin-policy-propagation-audit-trail-pack.md) |

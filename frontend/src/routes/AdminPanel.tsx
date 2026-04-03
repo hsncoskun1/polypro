@@ -1,9 +1,11 @@
-// Admin Panel — v1.0.9 (entitlement save flow + error handling)
+// Admin Panel — v1.1.2 (policy audit trail)
 import React, { useState, useCallback } from 'react';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AdminUserTable } from '../components/admin/AdminUserTable';
 import { EntitlementEditor } from '../components/admin/EntitlementEditor';
+import { AuditTrailPanel } from '../components/admin/AuditTrailPanel';
 import { useAdminUsers } from '../hooks/useAdminUsers';
+import { useAdminAudit } from '../hooks/useAdminAudit';
 import type { AdminUserSummary, EntitlementResponse, AdminEntitlementUpdateRequest } from '../types/auth';
 
 export default function AdminPanel() {
@@ -16,6 +18,9 @@ export default function AdminPanel() {
   const [entitlement, setEntitlement] = useState<EntitlementResponse | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [loadingEntitlement, setLoadingEntitlement] = useState(false);
+
+  const { records: auditRecords, loading: auditLoading, error: auditError } =
+    useAdminAudit(sessionToken, selectedUser?.user_id ?? null);
 
   const handleSelectUser = useCallback(async (user: AdminUserSummary) => {
     setSelectedUser(user);
@@ -96,6 +101,11 @@ export default function AdminPanel() {
               onClose={() => setEditorOpen(false)}
             />
           )}
+          <AuditTrailPanel
+            records={auditRecords}
+            loading={auditLoading}
+            error={auditError}
+          />
         </div>
       )}
     </div>
