@@ -1,15 +1,19 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import Home from '../routes/Home'
+import Launcher from '../routes/Launcher'
 import UserPanel from '../routes/UserPanel'
 import AdminPanel from '../routes/AdminPanel'
 import Settings from '../routes/Settings'
 import NotFound from '../routes/NotFound'
 
+vi.mock('../hooks/useReadiness', () => ({
+  useReadiness: () => ({ state: null, status: 'loading', refresh: vi.fn() }),
+}))
+
 describe('Routes render', () => {
-  test('Home renders heading', () => {
-    render(<MemoryRouter><Home /></MemoryRouter>)
-    expect(screen.getByText('POLYPRO')).toBeInTheDocument()
+  test('Launcher renders heading', () => {
+    render(<MemoryRouter><Launcher /></MemoryRouter>)
+    expect(screen.getByText('POLYPRO Başlatıcı')).toBeInTheDocument()
   })
 
   test('UserPanel renders heading', () => {
