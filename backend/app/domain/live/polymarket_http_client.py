@@ -1,7 +1,9 @@
-"""Polymarket HTTP client — v1.0.0.
+"""Polymarket HTTP client — v1.0.0 / v1.0.1.
 
 Concrete HTTP client for Polymarket CLOB REST API.
 Replaces seam _execute_* points in ProductionExchangeClient with real network calls.
+
+v1.0.1: Integrated PolymarketRequestSigner — all requests carry full POLY_* auth headers.
 
 Endpoints:
   POST   https://clob.polymarket.com/order           — submit
@@ -9,13 +11,14 @@ Endpoints:
   POST   https://clob.polymarket.com/order           — replace (cancel+resubmit flow)
   GET    https://clob.polymarket.com/order/{id}      — get order update
 
-Auth: Polymarket CLOB requires POLY_ADDRESS + POLY_SIGNATURE headers.
-  - POLY_SIGNATURE signing is v1.0.1 scope.
-  - Requests without wallet_address fail-closed (terminal_failure=True).
-  - Requests with wallet_address but no signature will be rejected by exchange (401).
+Auth: Polymarket CLOB Level 2 auth via PolymarketRequestSigner.
+  - Missing credentials → terminal_failure=True (fail-closed, no network call).
+  - PolymarketAuthError from signer → terminal_failure=True.
 
 No live applied testing. Do not call from simulation paths.
 """
+import json
+
 import httpx
 
 from app.domain.live.external_submit_payload import ExternalSubmitPayload
@@ -24,6 +27,7 @@ from app.domain.live.external_replace_payload import ExternalReplacePayload
 from app.domain.live.external_response_payload import ExternalResponsePayload
 from app.domain.live.live_credentials import LiveCredentials
 from app.domain.live.client_timeout_policy import ClientTimeoutPolicy
+from app.domain.live.polymarket_request_signer import PolymarketRequestSigner, PolymarketAuthError
 
 _CLOB_BASE = "https://clob.polymarket.com"
 _ORDER_URL = f"{_CLOB_BASE}/order"
@@ -42,15 +46,17 @@ class PolymarketHttpClient:
     """Concrete HTTP client for Polymarket CLOB REST API.
 
     Handles submit, cancel, replace, and order update HTTP operations.
+    All requests signed via PolymarketRequestSigner (v1.0.1).
     Credentials required — fails closed when not configured.
-    POLY_SIGNATURE signing to be injected in v1.0.1.
     """
 
     def __init__(
         self,
         timeout_policy: ClientTimeoutPolicy | None = None,
+        signer: PolymarketRequestSigner | None = None,
     ) -> None:
         self._timeout = (timeout_policy or ClientTimeoutPolicy()).timeout_seconds
+        self._signer = signer or PolymarketRequestSigner()
 
     # ------------------------------------------------------------------
     # Public execute methods
@@ -62,15 +68,14 @@ class PolymarketHttpClient:
         credentials: LiveCredentials,
     ) -> ExternalResponsePayload:
         """Submit a new order to Polymarket CLOB. Fail-closed if credentials missing."""
-        if not self._credentials_present(credentials):
+        body = self._build_submit_body(payload)
+        body_str = json.dumps(body, separators=(",", ":"))
+        try:
+            headers = self._signer.build_auth_headers(credentials, "POST", "/order", body_str)
+        except PolymarketAuthError:
             return self._credentials_missing_response()
         try:
-            response = httpx.post(
-                _ORDER_URL,
-                json=self._build_submit_body(payload),
-                headers=self._build_headers(credentials),
-                timeout=self._timeout,
-            )
+            response = httpx.post(_ORDER_URL, json=body, headers=headers, timeout=self._timeout)
             return self._parse_submit_response(response, payload)
         except httpx.TimeoutException:
             return self._timeout_response()
@@ -83,15 +88,14 @@ class PolymarketHttpClient:
         credentials: LiveCredentials,
     ) -> ExternalResponsePayload:
         """Cancel an existing order on Polymarket CLOB. Fail-closed if credentials missing."""
-        if not self._credentials_present(credentials):
+        body = {"orderIDs": [payload.order_id]}
+        body_str = json.dumps(body, separators=(",", ":"))
+        try:
+            headers = self._signer.build_auth_headers(credentials, "DELETE", "/order", body_str)
+        except PolymarketAuthError:
             return self._credentials_missing_response()
         try:
-            response = httpx.delete(
-                _ORDER_URL,
-                json={"orderIDs": [payload.order_id]},
-                headers=self._build_headers(credentials),
-                timeout=self._timeout,
-            )
+            response = httpx.delete(_ORDER_URL, json=body, headers=headers, timeout=self._timeout)
             return self._parse_cancel_response(response, payload)
         except httpx.TimeoutException:
             return self._timeout_response()
@@ -104,15 +108,14 @@ class PolymarketHttpClient:
         credentials: LiveCredentials,
     ) -> ExternalResponsePayload:
         """Replace (amend) an order on Polymarket CLOB. Fail-closed if credentials missing."""
-        if not self._credentials_present(credentials):
+        body = self._build_replace_body(payload)
+        body_str = json.dumps(body, separators=(",", ":"))
+        try:
+            headers = self._signer.build_auth_headers(credentials, "POST", "/order", body_str)
+        except PolymarketAuthError:
             return self._credentials_missing_response()
         try:
-            response = httpx.post(
-                _ORDER_URL,
-                json=self._build_replace_body(payload),
-                headers=self._build_headers(credentials),
-                timeout=self._timeout,
-            )
+            response = httpx.post(_ORDER_URL, json=body, headers=headers, timeout=self._timeout)
             return self._parse_replace_response(response, payload)
         except httpx.TimeoutException:
             return self._timeout_response()
@@ -125,15 +128,14 @@ class PolymarketHttpClient:
         credentials: LiveCredentials,
     ) -> ExternalResponsePayload:
         """Fetch latest order status from Polymarket CLOB. Fail-closed if credentials missing."""
-        if not self._credentials_present(credentials):
+        path = f"/order/{order_id}"
+        try:
+            headers = self._signer.build_auth_headers(credentials, "GET", path, "")
+        except PolymarketAuthError:
             return self._credentials_missing_response()
         try:
             url = _ORDER_BY_ID_URL.format(order_id=order_id)
-            response = httpx.get(
-                url,
-                headers=self._build_headers(credentials),
-                timeout=self._timeout,
-            )
+            response = httpx.get(url, headers=headers, timeout=self._timeout)
             return self._parse_update_response(response, order_id)
         except httpx.TimeoutException:
             return self._timeout_response()
@@ -160,20 +162,6 @@ class PolymarketHttpClient:
             "new_limit_price": payload.new_limit_price,
             "new_size": payload.new_size,
             "client_order_id": payload.client_order_id,
-        }
-
-    def _build_headers(self, credentials: LiveCredentials) -> dict:
-        """Build Polymarket CLOB auth headers.
-
-        POLY_SIGNATURE is empty in v1.0.0 — signing not yet implemented.
-        Requests will be rejected by exchange until v1.0.1 signing is wired.
-        """
-        return {
-            "Content-Type": "application/json",
-            "POLY_ADDRESS": credentials.wallet_address,
-            "POLY_SIGNATURE": "",   # v1.0.1: real HMAC/wallet signing
-            "POLY_TIMESTAMP": "",
-            "POLY_NONCE": "",
         }
 
     # ------------------------------------------------------------------
@@ -281,10 +269,6 @@ class PolymarketHttpClient:
             mapped_reject_reason=f"unexpected_http_{response.status_code}",
             terminal_failure=True,
         )
-
-    def _credentials_present(self, credentials: LiveCredentials) -> bool:
-        """Fail-closed: wallet_address is required for all Polymarket CLOB operations."""
-        return bool(credentials.wallet_address)
 
     def _credentials_missing_response(self) -> ExternalResponsePayload:
         return ExternalResponsePayload(
