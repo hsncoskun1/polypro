@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Home from '../routes/Home'
 import UserPanel from '../routes/UserPanel'
 import AdminPanel from '../routes/AdminPanel'
+import Settings from '../routes/Settings'
 
 describe('Routes render', () => {
   test('Home renders heading', () => {
@@ -18,5 +19,10 @@ describe('Routes render', () => {
   test('AdminPanel renders heading', () => {
     render(<MemoryRouter><AdminPanel /></MemoryRouter>)
     expect(screen.getByText('Admin Panel')).toBeInTheDocument()
+  })
+
+  test('Settings renders heading', () => {
+    render(<MemoryRouter><Settings /></MemoryRouter>)
+    expect(screen.getByText('Ayarlar')).toBeInTheDocument()
   })
 })
