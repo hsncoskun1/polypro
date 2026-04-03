@@ -1,13 +1,13 @@
-"""Production exchange client — concrete implementation — v0.8.0.
+"""Production exchange client — concrete implementation — v0.8.0 / v1.0.0.
 
 Concrete implementation of LiveExchangeClient for production use.
-Maps internal adapter contracts to external payloads and back.
+Maps internal adapter contracts to external payloads via PolymarketHttpClient.
 
-This version models the correct integration structure but does NOT make
-real network calls. The _execute_submit / _execute_cancel / _execute_replace /
-_execute_get_update methods are seam points for future HTTP/WS integration.
+v1.0.0: _execute_* methods wired to PolymarketHttpClient (real HTTP calls).
+Credentials required — fails closed when not configured.
+POLY_SIGNATURE signing not yet implemented (v1.0.1 scope).
 
-No live applied testing. Seam only.
+No live applied testing. Production use only.
 """
 from app.domain.live.adapter_submit_request import AdapterSubmitRequest
 from app.domain.live.adapter_submit_response import AdapterSubmitResponse
@@ -17,7 +17,9 @@ from app.domain.live.adapter_replace_request import AdapterReplaceRequest
 from app.domain.live.adapter_replace_response import AdapterReplaceResponse
 from app.domain.live.adapter_order_update import AdapterOrderUpdate
 from app.domain.live.external_response_payload import ExternalResponsePayload
+from app.domain.live.live_credentials import LiveCredentials
 from app.domain.live.live_exchange_client import LiveExchangeClient
+from app.domain.live.polymarket_http_client import PolymarketHttpClient
 from app.domain.live.production_request_mapper import ProductionRequestMapper
 from app.domain.live.production_response_mapper import ProductionResponseMapper
 
@@ -25,13 +27,19 @@ from app.domain.live.production_response_mapper import ProductionResponseMapper
 class ProductionExchangeClient(LiveExchangeClient):
     """Concrete production exchange client.
 
-    Maps internal adapter contracts → external payloads → back to adapter responses.
-    Network seam points (_execute_*) are not yet connected to real exchange.
+    Maps internal adapter contracts → external payloads → PolymarketHttpClient → adapter responses.
+    HTTP client and credentials are injectable for testing.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        http_client: PolymarketHttpClient | None = None,
+        credentials: LiveCredentials | None = None,
+    ) -> None:
         self._request_mapper = ProductionRequestMapper()
         self._response_mapper = ProductionResponseMapper()
+        self._http_client = http_client or PolymarketHttpClient()
+        self._credentials = credentials or LiveCredentials()
 
     # ------------------------------------------------------------------
     # Public adapter interface (LiveExchangeClient)
@@ -57,44 +65,17 @@ class ProductionExchangeClient(LiveExchangeClient):
         return self._response_mapper.map_order_update(raw_response, order_id)
 
     # ------------------------------------------------------------------
-    # Seam points — future HTTP/WS integration
+    # HTTP execution — delegates to PolymarketHttpClient
     # ------------------------------------------------------------------
 
     def _execute_submit(self, payload) -> ExternalResponsePayload:
-        """Seam: send submit payload to exchange and receive raw response.
-        Not yet connected to real exchange. Returns mapped_status='submitted'.
-        """
-        return ExternalResponsePayload(
-            mapped_order_id=payload.order_id,
-            mapped_client_order_id=payload.client_order_id,
-            mapped_status="submitted",
-        )
+        return self._http_client.execute_submit(payload, self._credentials)
 
     def _execute_cancel(self, payload) -> ExternalResponsePayload:
-        """Seam: send cancel payload to exchange and receive raw response.
-        Not yet connected to real exchange. Returns mapped_status='cancelled'.
-        """
-        return ExternalResponsePayload(
-            mapped_order_id=payload.order_id,
-            mapped_client_order_id=payload.client_order_id,
-            mapped_status="cancelled",
-        )
+        return self._http_client.execute_cancel(payload, self._credentials)
 
     def _execute_replace(self, payload) -> ExternalResponsePayload:
-        """Seam: send replace payload to exchange and receive raw response.
-        Not yet connected to real exchange. Returns mapped_status='replaced'.
-        """
-        return ExternalResponsePayload(
-            mapped_order_id=payload.order_id,
-            mapped_client_order_id=payload.client_order_id,
-            mapped_status="replaced",
-        )
+        return self._http_client.execute_replace(payload, self._credentials)
 
     def _execute_get_update(self, order_id: str) -> ExternalResponsePayload:
-        """Seam: fetch order update from exchange.
-        Not yet connected to real exchange. Returns mapped_status='no_update'.
-        """
-        return ExternalResponsePayload(
-            mapped_order_id=order_id,
-            mapped_status="no_update",
-        )
+        return self._http_client.execute_get_update(order_id, self._credentials)

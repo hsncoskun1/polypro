@@ -85,3 +85,4 @@
 | v0.9.0 | Merged to main | [v0.9.0-settings-live-configuration-ui-pack.md](releases/v0.9.0-settings-live-configuration-ui-pack.md) |
 | v0.9.1 | Merged to main | [v0.9.1-frontend-final-integration-ux-hardening-pack.md](releases/v0.9.1-frontend-final-integration-ux-hardening-pack.md) |
 | v0.9.2 | Merged to main | [v0.9.2-frontend-completion-audit-gap-closure-pack.md](releases/v0.9.2-frontend-completion-audit-gap-closure-pack.md) |
+| v1.0.0 | In progress | [v1.0.0-polymarket-http-client-pack.md](releases/v1.0.0-polymarket-http-client-pack.md) |
