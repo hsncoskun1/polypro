@@ -22,3 +22,10 @@ Thumbs.db
 
 # Local utility scripts — not product code
 create_polybot_doc.py
+test_order.py
+
+# Data and credential files
+env.txt
+*.db
+data/
+backend/data/
