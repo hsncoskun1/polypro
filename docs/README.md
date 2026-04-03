@@ -90,4 +90,5 @@
 | v1.0.2 | Merged to main | [v1.0.2-real-balance-fetch-sync-pack.md](releases/v1.0.2-real-balance-fetch-sync-pack.md) |
 | v1.0.3 | Merged to main | [v1.0.3-order-fill-stream-pack.md](releases/v1.0.3-order-fill-stream-pack.md) |
 | v1.0.4 | Merged to main | [v1.0.4-live-execution-driver-pack.md](releases/v1.0.4-live-execution-driver-pack.md) |
-| v1.0.5 | In progress | [v1.0.5-auth-license-admin-user-separation-pack.md](releases/v1.0.5-auth-license-admin-user-separation-pack.md) |
+| v1.0.5 | Merged to main | [v1.0.5-auth-license-admin-user-separation-pack.md](releases/v1.0.5-auth-license-admin-user-separation-pack.md) |
+| v1.0.6 | In progress | [v1.0.6-auth-hardening-pack.md](releases/v1.0.6-auth-hardening-pack.md) |
