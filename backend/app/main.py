@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.discovery import router as discovery_router
 from app.api.health import router as health_router
 from app.api.markets import router as markets_router
+from app.api.admin_control_plane import router as admin_control_plane_router
 from app.api.control_plane import router as control_plane_router
 from app.api.readiness import router as readiness_router
 from app.core.config import DISCOVERY_SCHEDULER_ENABLED, DISCOVERY_SCHEDULER_INTERVAL
@@ -55,5 +56,6 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(readiness_router)
 app.include_router(control_plane_router)
+app.include_router(admin_control_plane_router)
 app.include_router(markets_router)
 app.include_router(discovery_router)
