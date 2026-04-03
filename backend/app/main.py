@@ -1,9 +1,11 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.discovery import router as discovery_router
 from app.api.health import router as health_router
 from app.api.markets import router as markets_router
+from app.api.control_plane import router as control_plane_router
 from app.api.readiness import router as readiness_router
 from app.core.config import DISCOVERY_SCHEDULER_ENABLED, DISCOVERY_SCHEDULER_INTERVAL
 from app.core.logger import get_logger
@@ -44,7 +46,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="POLYPRO", version="0.3.1", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(health_router)
 app.include_router(readiness_router)
+app.include_router(control_plane_router)
 app.include_router(markets_router)
 app.include_router(discovery_router)
