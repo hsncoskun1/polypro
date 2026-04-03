@@ -88,3 +88,4 @@
 | v1.0.0 | Merged to main | [v1.0.0-polymarket-http-client-pack.md](releases/v1.0.0-polymarket-http-client-pack.md) |
 | v1.0.1 | Merged to main | [v1.0.1-request-signing-auth-pack.md](releases/v1.0.1-request-signing-auth-pack.md) |
 | v1.0.2 | Merged to main | [v1.0.2-real-balance-fetch-sync-pack.md](releases/v1.0.2-real-balance-fetch-sync-pack.md) |
+| v1.0.3 | Merged to main | [v1.0.3-order-fill-stream-pack.md](releases/v1.0.3-order-fill-stream-pack.md) |
