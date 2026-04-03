@@ -87,3 +87,4 @@
 | v0.9.2 | Merged to main | [v0.9.2-frontend-completion-audit-gap-closure-pack.md](releases/v0.9.2-frontend-completion-audit-gap-closure-pack.md) |
 | v1.0.0 | Merged to main | [v1.0.0-polymarket-http-client-pack.md](releases/v1.0.0-polymarket-http-client-pack.md) |
 | v1.0.1 | Merged to main | [v1.0.1-request-signing-auth-pack.md](releases/v1.0.1-request-signing-auth-pack.md) |
+| v1.0.2 | Merged to main | [v1.0.2-real-balance-fetch-sync-pack.md](releases/v1.0.2-real-balance-fetch-sync-pack.md) |
