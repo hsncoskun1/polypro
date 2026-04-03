@@ -81,4 +81,4 @@
 | v0.8.6 | Merged to main | [v0.8.6-final-completion-audit-gap-closure-pack.md](releases/v0.8.6-final-completion-audit-gap-closure-pack.md) |
 | v0.8.7 | Merged to main | [v0.8.7-launcher-readiness-release-gate-ui-pack.md](releases/v0.8.7-launcher-readiness-release-gate-ui-pack.md) |
 | v0.8.8 | Merged to main | [v0.8.8-user-control-plane-ui-pack.md](releases/v0.8.8-user-control-plane-ui-pack.md) |
-| v0.8.9 | In progress | [v0.8.9-admin-reporting-operational-control-ui-pack.md](releases/v0.8.9-admin-reporting-operational-control-ui-pack.md) |
+| v0.8.9 | Merged to main | [v0.8.9-admin-reporting-operational-control-ui-pack.md](releases/v0.8.9-admin-reporting-operational-control-ui-pack.md) |
