@@ -1,4 +1,4 @@
-"""Tests for PolymarketHttpClient — v1.0.0 / v1.0.1 / v1.0.2."""
+"""Tests for PolymarketHttpClient — v1.0.0 / v1.0.1 / v1.0.2 / v1.0.3."""
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -7,6 +7,7 @@ import pytest
 from app.domain.live.external_cancel_payload import ExternalCancelPayload
 from app.domain.live.external_replace_payload import ExternalReplacePayload
 from app.domain.live.external_submit_payload import ExternalSubmitPayload
+from app.domain.live.order_fill_stream_payload import OrderFillStreamPayload
 from app.domain.live.live_credentials import LiveCredentials
 from app.domain.live.polymarket_http_client import PolymarketHttpClient
 from app.domain.live.polymarket_request_signer import PolymarketRequestSigner, PolymarketAuthError
@@ -731,5 +732,291 @@ class TestGetBalanceSigningIntegration:
         mock_resp = _mock_response(200, {"balance": "10.0"})
         with patch("httpx.get", return_value=mock_resp) as mock_get:
             client.execute_get_balance(_creds())
+        headers = mock_get.call_args.kwargs.get("headers") or mock_get.call_args[1].get("headers")
+        assert headers["POLY_SIGNATURE"] == "test_sig_abc123"
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — helpers
+# ---------------------------------------------------------------------------
+
+def _fill_payload(order_id: str = "ord_001", client_order_id: str = "evt_001") -> OrderFillStreamPayload:
+    return OrderFillStreamPayload(order_id=order_id, client_order_id=client_order_id)
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — success / update_type classification (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamSuccess:
+    def test_no_fill_live_status_is_no_update(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE", "size_matched": "0", "size_remaining": "10"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "no_update"
+        assert result.stream_connected is True
+        assert result.terminal_failure is False
+
+    def test_partial_fill_classified(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "MATCHED", "size_matched": "5", "size_remaining": "5"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "partial_fill"
+        assert result.filled_size == 5.0
+        assert result.remaining_size == 5.0
+
+    def test_full_fill_classified(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "MATCHED", "size_matched": "10", "size_remaining": "0"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "full_fill"
+        assert result.filled_size == 10.0
+        assert result.remaining_size == 0.0
+
+    def test_cancelled_status_classified(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "CANCELLED"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "cancelled"
+        assert result.order_status == "CANCELLED"
+
+    def test_unmatched_status_classified_as_rejected(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "UNMATCHED"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "rejected"
+        assert result.order_status == "UNMATCHED"
+
+    def test_unknown_status_classified_as_unknown(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "WEIRD_STATUS"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "unknown"
+
+    def test_fill_price_populated(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "MATCHED", "size_matched": "5", "size_remaining": "5", "price": "0.75"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.fill_price == 0.75
+
+    def test_order_id_carried(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload("ord_999"), _creds())
+        assert result.order_id == "ord_999"
+
+    def test_client_order_id_carried(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(client_order_id="evt_999"), _creds())
+        assert result.client_order_id == "evt_999"
+
+    def test_source_is_poll(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.source == "poll"
+
+    def test_updated_at_populated(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.updated_at != ""
+        assert result.updated_at.isdigit()
+
+    def test_raw_update_payload_present(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE", "size_matched": "0"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert "status" in result.raw_update_payload
+
+    def test_normalized_update_result_populated(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.normalized_update_result != ""
+
+    def test_404_returns_no_update(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(404)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.update_type == "no_update"
+        assert result.terminal_failure is False
+
+    def test_url_contains_order_id(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp) as mock_get:
+            client.execute_get_fill_stream_update(_fill_payload("ord_777"), _creds())
+        call_url = mock_get.call_args[0][0]
+        assert "ord_777" in call_url
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — malformed response (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamMalformed:
+    def test_missing_status_field_terminal_failure(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {"size_matched": "5"})  # no status key
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.terminal_failure is True
+        assert "status_field_missing" in result.reject_reason
+
+    def test_malformed_never_returns_fake_fill(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(200, {})
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.terminal_failure is True
+        assert result.filled_size == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — HTTP error mapping (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamHttpErrors:
+    def test_401_auth_error_terminal_failure(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(401)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.terminal_failure is True
+        assert "auth_error" in result.reject_reason
+
+    def test_429_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(429)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_500_server_error_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(500)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_503_retryable(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(503)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.retryable is True
+
+    def test_unknown_status_fail_closed(self):
+        client = _client_with_mock_signer()
+        mock_resp = _mock_response(418)
+        with patch("httpx.get", return_value=mock_resp):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.terminal_failure is True
+        assert result.retryable is False
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — timeout and exceptions (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamTimeoutAndExceptions:
+    def test_timeout_retryable(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=httpx.TimeoutException("timeout")):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.retryable is True
+        assert result.terminal_failure is False
+
+    def test_timeout_reject_reason_set(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=httpx.TimeoutException("timeout")):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert "timeout" in result.reject_reason
+
+    def test_unexpected_exception_terminal(self):
+        client = _client_with_mock_signer()
+        with patch("httpx.get", side_effect=RuntimeError("unexpected")):
+            result = client.execute_get_fill_stream_update(_fill_payload(), _creds())
+        assert result.terminal_failure is True
+        assert result.retryable is False
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — credentials missing (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamCredentialsMissing:
+    def _failing_signer(self) -> PolymarketRequestSigner:
+        signer = MagicMock(spec=PolymarketRequestSigner)
+        signer.build_auth_headers.side_effect = PolymarketAuthError("credentials_not_configured")
+        return signer
+
+    def test_missing_credentials_terminal_failure(self):
+        client = PolymarketHttpClient(signer=self._failing_signer())
+        result = client.execute_get_fill_stream_update(_fill_payload(), _empty_creds())
+        assert result.terminal_failure is True
+        assert "credentials_not_configured" in result.reject_reason
+
+    def test_missing_credentials_order_id_preserved(self):
+        client = PolymarketHttpClient(signer=self._failing_signer())
+        result = client.execute_get_fill_stream_update(_fill_payload("ord_abc"), _empty_creds())
+        assert result.order_id == "ord_abc"
+
+    def test_real_signer_missing_key_fails_closed(self):
+        real_signer = PolymarketRequestSigner()
+        client = PolymarketHttpClient(signer=real_signer)
+        no_key = LiveCredentials(wallet_address="0xABC", api_secret="secret")
+        result = client.execute_get_fill_stream_update(_fill_payload(), no_key)
+        assert result.terminal_failure is True
+
+
+# ---------------------------------------------------------------------------
+# Fill stream — signing integration (v1.0.3)
+# ---------------------------------------------------------------------------
+
+class TestGetFillStreamSigningIntegration:
+    def test_signer_called_with_get_method(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            client.execute_get_fill_stream_update(_fill_payload("ord_001"), _creds())
+        mock_sig.build_auth_headers.assert_called_once()
+        call_args = mock_sig.build_auth_headers.call_args
+        assert call_args[0][1] == "GET"
+
+    def test_signer_called_with_order_id_in_path(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp):
+            client.execute_get_fill_stream_update(_fill_payload("ord_555"), _creds())
+        call_args = mock_sig.build_auth_headers.call_args
+        assert "ord_555" in call_args[0][2]
+
+    def test_signed_headers_forwarded_to_httpx_get(self):
+        mock_sig = _mock_signer()
+        client = PolymarketHttpClient(signer=mock_sig)
+        mock_resp = _mock_response(200, {"status": "LIVE"})
+        with patch("httpx.get", return_value=mock_resp) as mock_get:
+            client.execute_get_fill_stream_update(_fill_payload(), _creds())
         headers = mock_get.call_args.kwargs.get("headers") or mock_get.call_args[1].get("headers")
         assert headers["POLY_SIGNATURE"] == "test_sig_abc123"

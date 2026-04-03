@@ -1,16 +1,18 @@
-"""Polymarket HTTP client — v1.0.0 / v1.0.1 / v1.0.2.
+"""Polymarket HTTP client — v1.0.0 / v1.0.1 / v1.0.2 / v1.0.3.
 
 Concrete HTTP client for Polymarket CLOB REST API.
 Replaces seam _execute_* points in ProductionExchangeClient with real network calls.
 
 v1.0.1: Integrated PolymarketRequestSigner — all requests carry full POLY_* auth headers.
 v1.0.2: Added execute_get_balance — fetches real exchange balance via CLOB balance-allowance endpoint.
+v1.0.3: Added execute_get_fill_stream_update — richer order/fill update with update_type classification.
 
 Endpoints:
   POST   https://clob.polymarket.com/order                              — submit
   DELETE https://clob.polymarket.com/order                              — cancel (body: {orderIDs: [id]})
   POST   https://clob.polymarket.com/order                              — replace (cancel+resubmit flow)
-  GET    https://clob.polymarket.com/order/{id}                         — get order update
+  GET    https://clob.polymarket.com/order/{id}                         — get order update (ExternalResponsePayload)
+  GET    https://clob.polymarket.com/order/{id}                         — get fill stream update (OrderFillStreamResult)
   GET    https://clob.polymarket.com/balance-allowance?asset_type=COLLATERAL — get balance
 
 Auth: Polymarket CLOB Level 2 auth via PolymarketRequestSigner.
@@ -30,6 +32,8 @@ from app.domain.live.external_replace_payload import ExternalReplacePayload
 from app.domain.live.external_response_payload import ExternalResponsePayload
 from app.domain.live.balance_fetch_payload import BalanceFetchPayload
 from app.domain.live.balance_sync_result import BalanceSyncResult
+from app.domain.live.order_fill_stream_payload import OrderFillStreamPayload
+from app.domain.live.order_fill_stream_result import OrderFillStreamResult
 from app.domain.live.live_credentials import LiveCredentials
 from app.domain.live.client_timeout_policy import ClientTimeoutPolicy
 from app.domain.live.polymarket_request_signer import PolymarketRequestSigner, PolymarketAuthError
@@ -47,6 +51,8 @@ _ORDER_STATUS_MAP: dict[str, str] = {
     "CANCELLED": "cancelled",
     "UNMATCHED": "no_update",
 }
+
+_FILL_TERMINAL_STATUSES: frozenset[str] = frozenset({"CANCELLED", "UNMATCHED"})
 
 
 class PolymarketHttpClient:
@@ -174,6 +180,38 @@ class PolymarketHttpClient:
             return self._balance_timeout_result()
         except Exception:
             return self._balance_unknown_error_result()
+
+    def execute_get_fill_stream_update(
+        self,
+        payload: OrderFillStreamPayload,
+        credentials: LiveCredentials,
+    ) -> OrderFillStreamResult:
+        """Fetch order fill / status update from Polymarket CLOB.
+
+        Returns an OrderFillStreamResult with full update_type classification:
+          full_fill    — filled_size > 0 and remaining_size == 0
+          partial_fill — filled_size > 0 and remaining_size > 0
+          no_update    — order active but no fill yet
+          cancelled    — order CANCELLED at exchange
+          rejected     — order UNMATCHED at exchange
+          unknown      — unrecognized status (fail-closed)
+
+        Fail-closed: missing credentials / auth error / malformed → terminal_failure=True.
+        Timeout / 429 / 5xx → retryable=True.
+        """
+        path = f"/order/{payload.order_id}"
+        try:
+            headers = self._signer.build_auth_headers(credentials, "GET", path, "")
+        except PolymarketAuthError:
+            return self._fill_stream_credentials_missing_result(payload)
+        try:
+            url = _ORDER_BY_ID_URL.format(order_id=payload.order_id)
+            response = httpx.get(url, headers=headers, timeout=self._timeout)
+            return self._parse_fill_stream_response(response, payload)
+        except httpx.TimeoutException:
+            return self._fill_stream_timeout_result(payload)
+        except Exception:
+            return self._fill_stream_unknown_error_result(payload)
 
     # ------------------------------------------------------------------
     # Request builders
@@ -405,6 +443,152 @@ class PolymarketHttpClient:
             terminal_failure=True,
             reject_reason=f"unexpected_http_{response.status_code}",
             synced_at=synced_at,
+        )
+
+    def _parse_fill_stream_response(
+        self,
+        response: httpx.Response,
+        payload: OrderFillStreamPayload,
+    ) -> OrderFillStreamResult:
+        """Parse exchange order response into OrderFillStreamResult. Fail-closed on anomalies."""
+        updated_at = str(int(time.time()))
+
+        if response.status_code == 200:
+            raw = self._safe_json(response)
+            raw_status = raw.get("status")
+            if raw_status is None:
+                return OrderFillStreamResult(
+                    order_id=payload.order_id,
+                    client_order_id=payload.client_order_id,
+                    update_type="unknown",
+                    terminal_failure=True,
+                    reject_reason="status_field_missing",
+                    raw_update_payload=raw,
+                    updated_at=updated_at,
+                    source="poll",
+                )
+
+            status_upper = raw_status.upper() if isinstance(raw_status, str) else ""
+            filled_size = float(raw.get("size_matched", 0) or 0)
+            remaining_size = float(raw.get("size_remaining", 0) or 0)
+            fill_price = float(raw.get("price", 0) or raw.get("average_price", 0) or 0)
+
+            update_type = self._classify_fill_update(status_upper, filled_size, remaining_size)
+            normalized = (
+                f"order_id={payload.order_id} status={status_upper} "
+                f"update_type={update_type} filled={filled_size} remaining={remaining_size} "
+                f"price={fill_price} updated_at={updated_at}"
+            )
+
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                update_type=update_type,
+                order_status=status_upper,
+                filled_size=filled_size,
+                remaining_size=remaining_size,
+                fill_price=fill_price,
+                updated_at=updated_at,
+                source="poll",
+                stream_connected=True,
+                retryable=False,
+                terminal_failure=False,
+                raw_update_payload=raw,
+                normalized_update_result=normalized,
+            )
+
+        if response.status_code == 404:
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                update_type="no_update",
+                updated_at=updated_at,
+                source="poll",
+                stream_connected=True,
+            )
+        if response.status_code == 401:
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                terminal_failure=True,
+                reject_reason="auth_error",
+                updated_at=updated_at,
+                source="poll",
+            )
+        if response.status_code == 429:
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                retryable=True,
+                reject_reason="rate_limited",
+                updated_at=updated_at,
+                source="poll",
+            )
+        if response.status_code in (400, 422):
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                terminal_failure=True,
+                reject_reason=f"rejected_{response.status_code}",
+                updated_at=updated_at,
+                source="poll",
+            )
+        if response.status_code in (500, 502, 503, 504):
+            return OrderFillStreamResult(
+                order_id=payload.order_id,
+                client_order_id=payload.client_order_id,
+                retryable=True,
+                reject_reason=f"server_error_{response.status_code}",
+                updated_at=updated_at,
+                source="poll",
+            )
+        # Unknown — fail-closed
+        return OrderFillStreamResult(
+            order_id=payload.order_id,
+            client_order_id=payload.client_order_id,
+            terminal_failure=True,
+            reject_reason=f"unexpected_http_{response.status_code}",
+            updated_at=updated_at,
+            source="poll",
+        )
+
+    @staticmethod
+    def _classify_fill_update(status_upper: str, filled_size: float, remaining_size: float) -> str:
+        """Classify update_type from exchange order status and fill sizes."""
+        if status_upper == "CANCELLED":
+            return "cancelled"
+        if status_upper == "UNMATCHED":
+            return "rejected"
+        if filled_size > 0 and remaining_size == 0:
+            return "full_fill"
+        if filled_size > 0 and remaining_size > 0:
+            return "partial_fill"
+        if status_upper in ("LIVE", "MATCHED", "DELAYED"):
+            return "no_update"
+        return "unknown"
+
+    def _fill_stream_credentials_missing_result(self, payload: OrderFillStreamPayload) -> OrderFillStreamResult:
+        return OrderFillStreamResult(
+            order_id=payload.order_id,
+            client_order_id=payload.client_order_id,
+            terminal_failure=True,
+            reject_reason="credentials_not_configured",
+        )
+
+    def _fill_stream_timeout_result(self, payload: OrderFillStreamPayload) -> OrderFillStreamResult:
+        return OrderFillStreamResult(
+            order_id=payload.order_id,
+            client_order_id=payload.client_order_id,
+            retryable=True,
+            reject_reason="timeout",
+        )
+
+    def _fill_stream_unknown_error_result(self, payload: OrderFillStreamPayload) -> OrderFillStreamResult:
+        return OrderFillStreamResult(
+            order_id=payload.order_id,
+            client_order_id=payload.client_order_id,
+            terminal_failure=True,
+            reject_reason="unknown_error",
         )
 
     def _balance_credentials_missing_result(self) -> BalanceSyncResult:
