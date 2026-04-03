@@ -1,4 +1,6 @@
-"""Tests for production client concrete integration — v0.8.0."""
+"""Tests for production client concrete integration — v0.8.0 / v1.0.0."""
+from unittest.mock import MagicMock
+
 from app.domain.live.external_submit_payload import ExternalSubmitPayload
 from app.domain.live.external_cancel_payload import ExternalCancelPayload
 from app.domain.live.external_replace_payload import ExternalReplacePayload
@@ -8,6 +10,8 @@ from app.domain.live.adapter_submit_request import AdapterSubmitRequest
 from app.domain.live.adapter_cancel_request import AdapterCancelRequest
 from app.domain.live.adapter_replace_request import AdapterReplaceRequest
 from app.domain.live.adapter_error_translator import translate_status
+from app.domain.live.live_credentials import LiveCredentials
+from app.domain.live.polymarket_http_client import PolymarketHttpClient
 from app.domain.live.production_request_mapper import ProductionRequestMapper
 from app.domain.live.production_response_mapper import ProductionResponseMapper
 from app.domain.live.production_exchange_client import ProductionExchangeClient
@@ -221,12 +225,45 @@ class TestProductionResponseMapper:
 
 
 # ---------------------------------------------------------------------------
-# TestProductionExchangeClient
+# TestProductionExchangeClient — uses mocked PolymarketHttpClient (v1.0.0)
 # ---------------------------------------------------------------------------
+
+def _make_mock_http(
+    submit_status: str = "submitted",
+    cancel_status: str = "cancelled",
+    replace_status: str = "replaced",
+    update_status: str = "no_update",
+) -> MagicMock:
+    """Build a MagicMock PolymarketHttpClient with configurable response statuses."""
+    mock = MagicMock(spec=PolymarketHttpClient)
+    mock.execute_submit.return_value = ExternalResponsePayload(
+        mapped_order_id="ord_001",
+        mapped_client_order_id="evt_001",
+        mapped_status=submit_status,
+    )
+    mock.execute_cancel.return_value = ExternalResponsePayload(
+        mapped_order_id="ord_001",
+        mapped_status=cancel_status,
+    )
+    mock.execute_replace.return_value = ExternalResponsePayload(
+        mapped_order_id="ord_001",
+        mapped_status=replace_status,
+    )
+    mock.execute_get_update.return_value = ExternalResponsePayload(
+        mapped_order_id="ord_001",
+        mapped_status=update_status,
+    )
+    return mock
+
 
 class TestProductionExchangeClient:
     def setup_method(self):
-        self.client = ProductionExchangeClient()
+        self.mock_http = _make_mock_http()
+        self.creds = LiveCredentials(wallet_address="0xABC", api_key="key_001")
+        self.client = ProductionExchangeClient(
+            http_client=self.mock_http,
+            credentials=self.creds,
+        )
         self.submit_req = AdapterSubmitRequest(
             order_id="ord_001", event_key="evt_001",
             market_id="mkt_001", side="buy", size=10.0, limit_price=0.75,
@@ -260,26 +297,55 @@ class TestProductionExchangeClient:
         assert update.outcome_status == AdapterOutcomeStatus.ADAPTER_NO_UPDATE
         assert update.order_id == "ord_001"
 
-    def test_submit_maps_through_request_mapper(self):
-        """Internal payload mapper is called — market_id and side are forwarded."""
-        resp = self.client.submit_order(self.submit_req)
-        assert resp.exchange_order_id == "ord_001"
+    def test_submit_delegates_to_http_client(self):
+        """ProductionExchangeClient delegates _execute_submit to PolymarketHttpClient."""
+        self.client.submit_order(self.submit_req)
+        self.mock_http.execute_submit.assert_called_once()
 
-    def test_no_real_network_call(self):
-        """Client operates without network — seam only."""
-        # If this test runs, no network was called (would raise otherwise)
+    def test_cancel_delegates_to_http_client(self):
+        self.client.cancel_order(self.cancel_req)
+        self.mock_http.execute_cancel.assert_called_once()
+
+    def test_replace_delegates_to_http_client(self):
+        self.client.replace_order(self.replace_req)
+        self.mock_http.execute_replace.assert_called_once()
+
+    def test_get_update_delegates_to_http_client(self):
+        self.client.get_order_update("ord_001")
+        self.mock_http.execute_get_update.assert_called_once_with("ord_001", self.creds)
+
+    def test_http_terminal_failure_propagates(self):
+        """terminal_failure from HTTP client propagates through to adapter response."""
+        self.mock_http.execute_submit.return_value = ExternalResponsePayload(
+            mapped_status="",
+            terminal_failure=True,
+        )
         resp = self.client.submit_order(self.submit_req)
-        assert resp is not None
+        assert resp.outcome_status == AdapterOutcomeStatus.ADAPTER_TERMINAL_FAILURE
+        assert resp.terminal_failure is True
+
+    def test_credentials_injected_to_http_client(self):
+        """Credentials passed at construction are forwarded to http_client calls."""
+        self.client.submit_order(self.submit_req)
+        call_args = self.mock_http.execute_submit.call_args
+        passed_creds = call_args[0][1] if call_args[0] else call_args[1].get("credentials")
+        # credentials are the second positional arg
+        _, passed_creds = self.mock_http.execute_submit.call_args[0]
+        assert passed_creds.wallet_address == "0xABC"
 
     def test_cancel_and_replace_separate_paths(self):
         cancel_resp = self.client.cancel_order(self.cancel_req)
         replace_resp = self.client.replace_order(self.replace_req)
-        # Both succeed but via distinct seam paths
         assert cancel_resp.order_id == replace_resp.order_id
-        assert cancel_resp.outcome_status == replace_resp.outcome_status  # both ACCEPTED via different status maps
+        assert cancel_resp.outcome_status == replace_resp.outcome_status
 
     def test_adapter_contract_isolated(self):
         """Business logic receives AdapterSubmitResponse, not raw ExternalResponsePayload."""
         from app.domain.live.adapter_submit_response import AdapterSubmitResponse
         resp = self.client.submit_order(self.submit_req)
         assert isinstance(resp, AdapterSubmitResponse)
+
+    def test_default_construction_injects_http_client(self):
+        """ProductionExchangeClient() with no args creates PolymarketHttpClient automatically."""
+        client = ProductionExchangeClient()
+        assert isinstance(client._http_client, PolymarketHttpClient)
