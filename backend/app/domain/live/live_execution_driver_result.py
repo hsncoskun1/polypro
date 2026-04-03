@@ -7,7 +7,8 @@ driver_stage: string value of LiveExecutionStage from the orchestration layer.
 submit_result:         outcome_status string from adapter submit response.
 update_result:         update_type string from last fill stream poll.
 reconciliation_result: reconciliation_status string from order event reconciler.
-accounting_result:     dict carrying fill summary (filled_size, fill_price, pnl fields).
+accounting_result:     AccountingSnapshot produced by entry_fill_accounting evaluator.
+                       Zero snapshot returned when no fill occurred.
 
 Fail-closed rules:
   - completed=True only on full fill or cancellation acknowledged by orchestrator.
@@ -16,7 +17,12 @@ Fail-closed rules:
   - blocker_reasons populated when outbound guard or preflight blocks execution.
   - No fake success: completed=False and realized_pnl=0.0 until real fill confirmed.
 """
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import Optional
+
+from app.domain.accounting.accounting_snapshot import AccountingSnapshot
 
 
 @dataclass
@@ -32,7 +38,7 @@ class LiveExecutionDriverResult:
     submit_result: str = ""
     update_result: str = ""
     reconciliation_result: str = ""
-    accounting_result: dict = field(default_factory=dict)
+    accounting_result: Optional[AccountingSnapshot] = None
 
     # Orchestration output
     driver_stage: str = ""

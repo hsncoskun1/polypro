@@ -13,6 +13,7 @@ from app.domain.live.live_execution_driver_context import LiveExecutionDriverCon
 from app.domain.live.live_execution_stage import LiveExecutionStage
 from app.domain.live.order_fill_stream_result import OrderFillStreamResult
 from app.domain.live.polymarket_http_client import PolymarketHttpClient
+from app.domain.accounting.accounting_snapshot import AccountingSnapshot
 
 
 # ---------------------------------------------------------------------------
@@ -247,13 +248,51 @@ class TestDriverFullFill:
         assert result.update_result == "full_fill"
         assert result.last_update_status == "full_fill"
 
-    def test_full_fill_accounting_result_has_fill_data(self):
+    def test_full_fill_accounting_result_is_snapshot(self):
         exchange = _mock_exchange(exchange_order_id="exch_001")
         http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
         driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
         result = driver.run(_ctx())
-        assert result.accounting_result["filled_size"] == 10.0
-        assert result.accounting_result["fill_price"] == 0.75
+        assert isinstance(result.accounting_result, AccountingSnapshot)
+
+    def test_full_fill_accounting_filled_size(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.filled_size == 10.0
+
+    def test_full_fill_accounting_entry_fill_price(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.entry_fill_price == 0.75
+
+    def test_full_fill_accounting_realized_pnl_zero_at_entry(self):
+        # At entry fill with current_price == fill_price, realized_pnl is 0.0 (position open)
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.realized_pnl == 0.0
+
+    def test_full_fill_accounting_unrealized_pnl_zero_when_current_equals_fill(self):
+        # current_price is set to fill_price in driver, so unrealized_pnl == 0.0
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.unrealized_pnl == 0.0
+
+    def test_full_fill_accounting_pnl_fields_on_result(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("full_fill", filled_size=10.0, fill_price=0.75)
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.realized_pnl == 0.0
+        assert result.unrealized_pnl == 0.0
+        assert result.current_balance == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -551,3 +590,62 @@ class TestDriverNoFakeSuccess:
         result = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds()).run(_ctx())
         assert result.last_fill_price == 0.0
         assert result.last_filled_size == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Accounting result — no-fill cases
+# ---------------------------------------------------------------------------
+
+class TestDriverAccountingNoFill:
+    def test_no_update_accounting_result_is_snapshot(self):
+        exchange = _mock_exchange()
+        http = _mock_http("no_update")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert isinstance(result.accounting_result, AccountingSnapshot)
+
+    def test_no_update_accounting_filled_size_zero(self):
+        exchange = _mock_exchange()
+        http = _mock_http("no_update")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.filled_size == 0.0
+
+    def test_no_update_accounting_pnl_all_zero(self):
+        exchange = _mock_exchange()
+        http = _mock_http("no_update")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.realized_pnl == 0.0
+        assert result.accounting_result.unrealized_pnl == 0.0
+        assert result.accounting_result.current_balance == 0.0
+
+    def test_cancelled_accounting_result_is_snapshot(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("cancelled")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert isinstance(result.accounting_result, AccountingSnapshot)
+
+    def test_cancelled_accounting_pnl_all_zero(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("cancelled")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.realized_pnl == 0.0
+        assert result.accounting_result.unrealized_pnl == 0.0
+
+    def test_rejected_accounting_result_is_snapshot(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("rejected")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert isinstance(result.accounting_result, AccountingSnapshot)
+
+    def test_rejected_accounting_pnl_all_zero(self):
+        exchange = _mock_exchange(exchange_order_id="exch_001")
+        http = _mock_http("rejected")
+        driver = LiveExecutionDriver(exchange_client=exchange, http_client=http, credentials=_creds())
+        result = driver.run(_ctx())
+        assert result.accounting_result.realized_pnl == 0.0
+        assert result.accounting_result.unrealized_pnl == 0.0

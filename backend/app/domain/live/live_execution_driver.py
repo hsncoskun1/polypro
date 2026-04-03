@@ -46,6 +46,9 @@ from app.domain.live.order_event_reconciler import reconcile_order_events
 from app.domain.live.live_execution_orchestration_context import LiveExecutionOrchestrationContext
 from app.domain.live.live_execution_orchestrator import orchestrate_live_execution
 from app.domain.live.live_execution_stage import LiveExecutionStage
+from app.domain.accounting.accounting_context import AccountingContext
+from app.domain.accounting.accounting_snapshot import AccountingSnapshot
+from app.domain.accounting.entry_fill_accounting import compute_entry_fill_accounting
 
 _UPDATE_TYPE_TO_EVENT_TYPE: dict[str, LiveOrderEventType] = {
     "full_fill": LiveOrderEventType.ORDER_FILLED,
@@ -216,13 +219,46 @@ class LiveExecutionDriver:
         trace.append(f"stage:{orch_result.current_stage}")
 
         # Step 7: Accounting summary
-        accounting_result = {
-            "filled_size": last_filled_size,
-            "fill_price": last_fill_price,
-            "realized_pnl": 0.0,
-            "unrealized_pnl": 0.0,
-            "current_balance": 0.0,
-        }
+        if last_filled_size > 0:
+            accounting_ctx = AccountingContext(
+                side=ctx.submit_request.side,
+                entry_trigger_price=last_fill_price,
+                entry_order_submitted_price=ctx.submit_request.limit_price,
+                entry_fill_price=last_fill_price,
+                current_price=last_fill_price,
+                requested_size=ctx.submit_request.size,
+                filled_size=last_filled_size,
+                total_balance=0.0,
+                available_balance=0.0,
+                session_start_balance=0.0,
+            )
+            accounting_result: AccountingSnapshot = compute_entry_fill_accounting(accounting_ctx)
+        else:
+            accounting_result = AccountingSnapshot(
+                side=ctx.submit_request.side,
+                entry_trigger_price=0.0,
+                entry_order_submitted_price=0.0,
+                entry_fill_price=0.0,
+                entry_trigger_move_value=0.0,
+                entry_fill_move_value=0.0,
+                current_price=0.0,
+                current_move_value=0.0,
+                exit_trigger_price=0.0,
+                exit_order_submitted_price=0.0,
+                exit_fill_price=0.0,
+                requested_size=ctx.submit_request.size,
+                filled_size=0.0,
+                unrealized_pnl=0.0,
+                realized_pnl=0.0,
+                session_realized_pnl=0.0,
+                session_unrealized_pnl=0.0,
+                session_total_pnl=0.0,
+                total_balance=0.0,
+                available_balance=0.0,
+                session_start_balance=0.0,
+                current_balance=0.0,
+                claim_adjusted_balance_effect=0.0,
+            )
 
         return LiveExecutionDriverResult(
             event_key=ctx.event_key,
@@ -241,9 +277,9 @@ class LiveExecutionDriver:
             last_update_status=last_update_status,
             last_fill_price=last_fill_price,
             last_filled_size=last_filled_size,
-            realized_pnl=0.0,
-            unrealized_pnl=0.0,
-            current_balance=0.0,
+            realized_pnl=accounting_result.realized_pnl,
+            unrealized_pnl=accounting_result.unrealized_pnl,
+            current_balance=accounting_result.current_balance,
             raw_driver_trace=trace,
         )
 
